@@ -1,0 +1,63 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#bbdefb', 'secondaryColor': '#c8e6c9'}}}%%
+flowchart TB
+    subgraph Server["Central Server"]
+        S1["Global Memory Bank\nCoordinator"]
+        S2["Aggregation Engine\n(Federated Coreset)"]
+        S3["Communication\nHandler"]
+    end
+
+    subgraph Client1["Client 1: Engine Assembly"]
+        C1D["Local Data:\nengine_wiring"]
+        C1F["Feature\nExtractor"]
+        C1M["Local Memory\nBank"]
+        C1D --> C1F --> C1M
+    end
+
+    subgraph Client2["Client 2: Underbody Line"]
+        C2D["Local Data:\nunderbody_pipes\nunderbody_screw"]
+        C2F["Feature\nExtractor"]
+        C2M["Local Memory\nBank"]
+        C2D --> C2F --> C2M
+    end
+
+    subgraph Client3["Client 3: Fastener Station"]
+        C3D["Local Data:\ntank_screw\npipe_staple"]
+        C3F["Feature\nExtractor"]
+        C3M["Local Memory\nBank"]
+        C3D --> C3F --> C3M
+    end
+
+    subgraph Client4["Client 4: Clip Inspection"]
+        C4D["Local Data:\npipe_clip"]
+        C4F["Feature\nExtractor"]
+        C4M["Local Memory\nBank"]
+        C4D --> C4F --> C4M
+    end
+
+    subgraph Client5["Client 5: Quality Control"]
+        C5D["Local Data:\nMixed (10% each)"]
+        C5F["Feature\nExtractor"]
+        C5M["Local Memory\nBank"]
+        C5D --> C5F --> C5M
+    end
+
+    S3 <-->|"1. Init/Sync"| C1M
+    S3 <-->|"1. Init/Sync"| C2M
+    S3 <-->|"1. Init/Sync"| C3M
+    S3 <-->|"1. Init/Sync"| C4M
+    S3 <-->|"1. Init/Sync"| C5M
+
+    C1M -->|"2. Local Coreset"| S2
+    C2M -->|"2. Local Coreset"| S2
+    C3M -->|"2. Local Coreset"| S2
+    C4M -->|"2. Local Coreset"| S2
+    C5M -->|"2. Local Coreset"| S2
+
+    S2 -->|"3. Aggregate"| S1
+
+    style Server fill:#bbdefb
+    style Client1 fill:#c8e6c9
+    style Client2 fill:#fff9c4
+    style Client3 fill:#ffccbc
+    style Client4 fill:#e1bee7
+    style Client5 fill:#b2dfdb

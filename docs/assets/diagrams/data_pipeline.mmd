@@ -1,0 +1,31 @@
+%%{init: {'theme': 'base'}}%%
+flowchart TB
+    subgraph Acquisition["Phase 1: Data Acquisition"]
+        A1["Download from Zenodo"] --> A2["Extract 6 Object Categories"]
+        A2 --> A3["Verify defects_config.json"]
+    end
+
+    subgraph Preprocessing["Phase 1: Preprocessing"]
+        B1["Load Images"] --> B2{"Object Type?"}
+        B2 -->|"engine_wiring\npipe_clip\npipe_staple"| B3["Resize 400x400"]
+        B2 -->|"tank_screw\nunderbody_pipes\nunderbody_screw"| B4["Resize 1000x750"]
+        B3 --> B5["Normalize\n(ImageNet stats)"]
+        B4 --> B5
+        B5 --> B6["Extract WideResNet-50\nFeatures"]
+        B6 --> B7["Cache Feature\nVectors"]
+    end
+
+    subgraph Partitioning["Phase 1: FL Partitioning"]
+        C1["Load Preprocessed Data"] --> C2{"Strategy?"}
+        C2 -->|"IID"| C3["Random Uniform\nSplit to 5 Clients"]
+        C2 -->|"Category-based"| C4["Assign Categories\nto Clients"]
+        C3 --> C5["Create Client\nDataLoaders"]
+        C4 --> C5
+        C5 --> C6["Save Partition\nMetadata"]
+    end
+
+    Acquisition --> Preprocessing --> Partitioning
+
+    style Acquisition fill:#e1f5fe
+    style Preprocessing fill:#e8f5e9
+    style Partitioning fill:#fce4ec
