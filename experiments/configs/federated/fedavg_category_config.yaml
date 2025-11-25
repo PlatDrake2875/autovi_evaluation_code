@@ -4,6 +4,7 @@
 federated:
   num_clients: 5
   partitioning: "category"
+  num_rounds: 1  # Number of federated training rounds
   client_assignments:
     # Client 0: Engine Assembly Station
     0: ["engine_wiring"]
@@ -42,7 +43,6 @@ preprocessing:
 training:
   batch_size: 32
   num_workers: 4
-  num_rounds: 1  # PatchCore is non-iterative
 
 inference:
   num_neighbors: 1

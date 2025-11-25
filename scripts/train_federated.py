@@ -114,6 +114,18 @@ def main():
         default=None,
         help="Random seed (overrides config)",
     )
+    parser.add_argument(
+        "--num_rounds",
+        type=int,
+        default=None,
+        help="Number of federated training rounds (overrides config)",
+    )
+    parser.add_argument(
+        "--checkpoint_every",
+        type=int,
+        default=1,
+        help="Save checkpoint every N rounds (default: 1)",
+    )
     args = parser.parse_args()
 
     # Load configuration
@@ -123,6 +135,8 @@ def main():
     # Override config with command line arguments
     seed = args.seed if args.seed is not None else config.get("seed", 42)
     output_dir = args.output_dir if args.output_dir else config.get("output", {}).get("dir", "outputs/federated")
+    num_rounds = args.num_rounds if args.num_rounds is not None else config.get("federated", {}).get("num_rounds", 1)
+    checkpoint_every = args.checkpoint_every
 
     # Set random seeds
     np.random.seed(seed)
@@ -146,6 +160,8 @@ def main():
     print(f"Output directory: {output_dir}")
     print(f"Partitioning: {config['federated']['partitioning']}")
     print(f"Number of clients: {config['federated']['num_clients']}")
+    print(f"Number of rounds: {num_rounds}")
+    print(f"Checkpoint every: {checkpoint_every} rounds")
     print(f"Random seed: {seed}")
 
     # Load dataset
@@ -288,6 +304,7 @@ def main():
         weighted_by_samples=aggregation_config.get("weighted_by_samples", True),
         use_faiss=model_config.get("use_faiss", True),
         device=args.device,
+        num_rounds=num_rounds,
     )
 
     # Store partition info
@@ -298,7 +315,15 @@ def main():
     print("\n--- Starting Federated Training ---")
     start_time = time.time()
 
-    global_memory_bank = federated_model.train(dataloaders, seed=seed)
+    # Create checkpoint directory
+    checkpoint_dir = output_path / "checkpoints"
+
+    global_memory_bank = federated_model.train(
+        dataloaders,
+        seed=seed,
+        checkpoint_dir=str(checkpoint_dir),
+        checkpoint_every=checkpoint_every,
+    )
 
     elapsed_time = time.time() - start_time
     print(f"\nTraining completed in {elapsed_time:.2f} seconds")
@@ -319,6 +344,7 @@ def main():
     final_stats = federated_model.get_stats()
     print(f"\nFinal Statistics:")
     print(f"  Clients: {final_stats['num_clients']}")
+    print(f"  Rounds: {final_stats['num_rounds']}")
     print(f"  Backbone: {final_stats['backbone']}")
     print(f"  Aggregation: {final_stats['aggregation_strategy']}")
     print(f"  Global bank: {final_stats['actual_global_bank_size']}")

@@ -4,6 +4,7 @@
 federated:
   num_clients: 5
   partitioning: "iid"
+  num_rounds: 1  # Number of federated training rounds
 
 model:
   backbone: "wide_resnet50_2"
@@ -30,7 +31,6 @@ preprocessing:
 training:
   batch_size: 32
   num_workers: 4
-  num_rounds: 1  # PatchCore is non-iterative
 
 inference:
   num_neighbors: 1

@@ -55,6 +55,7 @@ class FederatedPatchCore:
         weighted_by_samples: bool = True,
         use_faiss: bool = True,
         device: str = "auto",
+        num_rounds: int = 1,
     ):
         """Initialize the FederatedPatchCore system.
 
@@ -69,6 +70,7 @@ class FederatedPatchCore:
             weighted_by_samples: If True, weight client contributions by data size.
             use_faiss: Whether to use FAISS for nearest neighbor search.
             device: Device for computation.
+            num_rounds: Number of federated training rounds.
         """
         self.num_clients = num_clients
         self.backbone_name = backbone_name
@@ -79,6 +81,7 @@ class FederatedPatchCore:
         self.aggregation_strategy = aggregation_strategy
         self.weighted_by_samples = weighted_by_samples
         self.use_faiss = use_faiss
+        self.num_rounds = num_rounds
 
         # Set device
         if device == "auto":
@@ -172,25 +175,73 @@ class FederatedPatchCore:
         self,
         dataloaders: Dict[int, DataLoader],
         seed: int = 42,
+        checkpoint_dir: Optional[str] = None,
+        checkpoint_every: int = 1,
     ) -> np.ndarray:
-        """Run one federated training round.
+        """Run federated training for multiple rounds with optional checkpointing.
 
         This is the main training method that:
         1. Has each client extract features and build local coresets
         2. Aggregates coresets on the server
         3. Broadcasts the global memory bank to all clients
+        4. Saves checkpoints after each round (if checkpoint_dir is provided)
 
         Args:
             dataloaders: Dictionary mapping client_id -> DataLoader.
             seed: Random seed for reproducibility.
+            checkpoint_dir: Directory to save checkpoints. If None, no checkpoints are saved.
+            checkpoint_every: Save checkpoint every N rounds (default: 1, meaning every round).
+
+        Returns:
+            Global memory bank as numpy array.
+        """
+        total_start_time = time.time()
+        print("\n" + "=" * 60)
+        print(f"Starting Federated Training ({self.num_rounds} rounds)")
+        print("=" * 60)
+
+        global_features = None
+
+        for round_num in range(1, self.num_rounds + 1):
+            print(f"\n{'='*60}")
+            print(f"Round {round_num}/{self.num_rounds}")
+            print(f"{'='*60}")
+
+            # Run single round
+            round_seed = seed + round_num - 1
+            global_features = self._train_single_round(dataloaders, seed=round_seed, round_num=round_num)
+
+            # Save checkpoint if needed
+            if checkpoint_dir and round_num % checkpoint_every == 0:
+                round_dir = Path(checkpoint_dir) / f"round_{round_num:03d}"
+                self.save(str(round_dir))
+                print(f"Saved checkpoint to {round_dir}")
+
+        total_elapsed_time = time.time() - total_start_time
+        print("\n" + "=" * 60)
+        print(f"Federated Training Complete ({total_elapsed_time:.2f}s, {self.num_rounds} rounds)")
+        print(f"Global memory bank size: {len(global_features)}")
+        print("=" * 60)
+
+        return global_features
+
+    def _train_single_round(
+        self,
+        dataloaders: Dict[int, DataLoader],
+        seed: int = 42,
+        round_num: int = 1,
+    ) -> np.ndarray:
+        """Run a single federated training round.
+
+        Args:
+            dataloaders: Dictionary mapping client_id -> DataLoader.
+            seed: Random seed for reproducibility.
+            round_num: Current round number (for logging).
 
         Returns:
             Global memory bank as numpy array.
         """
         start_time = time.time()
-        print("\n" + "=" * 60)
-        print("Starting Federated Training Round")
-        print("=" * 60)
 
         # Phase 1: Local feature extraction and coreset building
         print("\n--- Phase 1: Local Client Processing ---")
@@ -247,15 +298,15 @@ class FederatedPatchCore:
         self.training_stats = {
             "elapsed_time_seconds": elapsed_time,
             "num_clients": len(self.clients),
+            "num_rounds": self.num_rounds,
+            "current_round": round_num,
             "partition_stats": self.partition_stats if hasattr(self, "partition_stats") else {},
             "server_stats": self.server.get_stats(),
             "client_stats": client_stats,
         }
 
-        print("\n" + "=" * 60)
-        print(f"Federated Training Complete ({elapsed_time:.2f}s)")
+        print(f"\nRound {round_num} complete ({elapsed_time:.2f}s)")
         print(f"Global memory bank size: {len(global_features)}")
-        print("=" * 60)
 
         return global_features
 
@@ -383,6 +434,7 @@ class FederatedPatchCore:
             "neighborhood_size": self.neighborhood_size,
             "aggregation_strategy": self.aggregation_strategy,
             "weighted_by_samples": self.weighted_by_samples,
+            "num_rounds": self.num_rounds,
             "feature_dim": self.feature_dim,
             "image_size": self.image_size,
             "feature_map_size": self.feature_map_size,
@@ -421,6 +473,7 @@ class FederatedPatchCore:
             self.neighborhood_size = config.get("neighborhood_size", self.neighborhood_size)
             self.aggregation_strategy = config.get("aggregation_strategy", self.aggregation_strategy)
             self.weighted_by_samples = config.get("weighted_by_samples", self.weighted_by_samples)
+            self.num_rounds = config.get("num_rounds", self.num_rounds)
             self.feature_dim = config.get("feature_dim", self.feature_dim)
             self.image_size = tuple(config["image_size"]) if config.get("image_size") else None
             self.feature_map_size = tuple(config["feature_map_size"]) if config.get("feature_map_size") else None
@@ -452,6 +505,7 @@ class FederatedPatchCore:
             "global_bank_size": self.global_bank_size,
             "neighborhood_size": self.neighborhood_size,
             "aggregation_strategy": self.aggregation_strategy,
+            "num_rounds": self.num_rounds,
             "device": str(self.device),
             "feature_dim": self.feature_dim,
             "image_size": self.image_size,
