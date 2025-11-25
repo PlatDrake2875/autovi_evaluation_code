@@ -1,0 +1,146 @@
+{
+  "iid": {
+    "num_clients": 5,
+    "total_samples": 1523,
+    "clients": {
+      "0": {
+        "num_samples": 305,
+        "by_category": {
+          "pipe_staple": 40,
+          "underbody_pipes": 35,
+          "underbody_screw": 74,
+          "pipe_clip": 40,
+          "tank_screw": 64,
+          "engine_wiring": 52
+        },
+        "by_label": {
+          "0": 305,
+          "1": 0
+        }
+      },
+      "1": {
+        "num_samples": 305,
+        "by_category": {
+          "underbody_screw": 83,
+          "engine_wiring": 46,
+          "underbody_pipes": 27,
+          "tank_screw": 54,
+          "pipe_clip": 51,
+          "pipe_staple": 44
+        },
+        "by_label": {
+          "0": 305,
+          "1": 0
+        }
+      },
+      "2": {
+        "num_samples": 305,
+        "by_category": {
+          "pipe_staple": 30,
+          "engine_wiring": 71,
+          "underbody_screw": 67,
+          "underbody_pipes": 31,
+          "tank_screw": 72,
+          "pipe_clip": 34
+        },
+        "by_label": {
+          "0": 305,
+          "1": 0
+        }
+      },
+      "3": {
+        "num_samples": 304,
+        "by_category": {
+          "pipe_staple": 40,
+          "underbody_screw": 63,
+          "pipe_clip": 37,
+          "engine_wiring": 62,
+          "tank_screw": 68,
+          "underbody_pipes": 34
+        },
+        "by_label": {
+          "0": 304,
+          "1": 0
+        }
+      },
+      "4": {
+        "num_samples": 304,
+        "by_category": {
+          "pipe_staple": 37,
+          "underbody_screw": 86,
+          "underbody_pipes": 34,
+          "tank_screw": 60,
+          "engine_wiring": 54,
+          "pipe_clip": 33
+        },
+        "by_label": {
+          "0": 304,
+          "1": 0
+        }
+      }
+    }
+  },
+  "category": {
+    "num_clients": 5,
+    "total_samples": 1523,
+    "clients": {
+      "0": {
+        "num_samples": 257,
+        "by_category": {
+          "engine_wiring": 257
+        },
+        "by_label": {
+          "0": 257,
+          "1": 0
+        }
+      },
+      "1": {
+        "num_samples": 481,
+        "by_category": {
+          "underbody_pipes": 145,
+          "underbody_screw": 336
+        },
+        "by_label": {
+          "0": 481,
+          "1": 0
+        }
+      },
+      "2": {
+        "num_samples": 459,
+        "by_category": {
+          "tank_screw": 287,
+          "pipe_staple": 172
+        },
+        "by_label": {
+          "0": 459,
+          "1": 0
+        }
+      },
+      "3": {
+        "num_samples": 176,
+        "by_category": {
+          "pipe_clip": 176
+        },
+        "by_label": {
+          "0": 176,
+          "1": 0
+        }
+      },
+      "4": {
+        "num_samples": 150,
+        "by_category": {
+          "engine_wiring": 28,
+          "pipe_clip": 19,
+          "pipe_staple": 19,
+          "tank_screw": 31,
+          "underbody_pipes": 16,
+          "underbody_screw": 37
+        },
+        "by_label": {
+          "0": 150,
+          "1": 0
+        }
+      }
+    }
+  }
+}

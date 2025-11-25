@@ -1,0 +1,55 @@
+# Federated PatchCore Configuration - Category-Based (Non-IID) Partitioning
+# Assigns clients based on object categories, simulating realistic factory setup
+
+federated:
+  num_clients: 5
+  partitioning: "category"
+  client_assignments:
+    # Client 0: Engine Assembly Station
+    0: ["engine_wiring"]
+    # Client 1: Underbody Line
+    1: ["underbody_pipes", "underbody_screw"]
+    # Client 2: Fastener Station
+    2: ["tank_screw", "pipe_staple"]
+    # Client 3: Clip Inspection
+    3: ["pipe_clip"]
+    # Client 4: Quality Control (mixed samples)
+    4: ["all"]
+  qc_sample_ratio: 0.1  # QC client gets 10% from each category
+
+model:
+  backbone: "wide_resnet50_2"
+  layers: ["layer2", "layer3"]
+  coreset_ratio: 0.1  # Local coreset ratio per client
+  neighborhood_size: 3
+  use_faiss: true
+
+aggregation:
+  strategy: "federated_coreset"
+  global_bank_size: 10000
+  weighted_by_samples: true
+  oversample_factor: 2.0
+
+preprocessing:
+  # Small objects: engine_wiring, pipe_clip, pipe_staple
+  resize_small: [400, 400]
+  # Large objects: tank_screw, underbody_pipes, underbody_screw
+  resize_large: [1000, 750]
+  # ImageNet normalization
+  normalize_mean: [0.485, 0.456, 0.406]
+  normalize_std: [0.229, 0.224, 0.225]
+
+training:
+  batch_size: 32
+  num_workers: 4
+  num_rounds: 1  # PatchCore is non-iterative
+
+inference:
+  num_neighbors: 1
+
+output:
+  dir: "outputs/federated/category_based"
+  save_memory_bank: true
+  save_client_stats: true
+
+seed: 42
