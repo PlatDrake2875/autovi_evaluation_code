@@ -7,17 +7,21 @@ The dataset can be found at the following address: [https://doi.org/10.5281/zeno
 
 This code is adapted from the code made available by MVTec GmbH at [https://www.mvtec.com/company/research/datasets/mvtec-loco](https://www.mvtec.com/company/research/datasets/mvtec-loco)
 
-## Installation.
-Our evaluation scripts require a python 3.7 installation as well as the following
-packages:
+## Installation
+Our evaluation scripts require Python 3.10+ and the following packages:
 - numpy
 - pillow
 - tqdm
+- tabulate
 
-For Linux, we provide an conda environment file. It can be used to create a new conda environment with all required packages readily installed:
+Install dependencies using [uv](https://docs.astral.sh/uv/):
 ```
-conda env create --name autovi_eval --file=conda_environment.yml
-conda activate autovi_eval
+uv sync
+```
+
+Or with pip:
+```
+pip install -e .
 ```
 
 ## Evaluating a single experiment.
