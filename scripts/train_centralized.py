@@ -3,58 +3,32 @@
 
 import argparse
 import json
-import logging
-import os
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
 import numpy as np
 import torch
-import yaml
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.data.autovi_dataset import AutoVIDataset, CATEGORIES, get_resize_shape
+from src.data import AutoVIDataset, CATEGORIES, get_resize_shape
 from src.models.patchcore import PatchCore
+from src.training import (
+    load_config,
+    set_random_seeds,
+    setup_output_directory,
+    setup_logging,
+)
 
 
-def setup_logging(output_dir: Path) -> logging.Logger:
-    """Setup logging to file and console."""
-    log_dir = output_dir / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = log_dir / f"training_{timestamp}.log"
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler(),
-        ],
-    )
-
-    return logging.getLogger(__name__)
-
-
-def load_config(config_path: str) -> Dict:
-    """Load configuration from YAML file."""
-    with open(config_path, "r") as f:
-        config = yaml.safe_load(f)
-    return config
-
-
-def get_transforms(category: str, config: Dict) -> transforms.Compose:
+def get_transforms_for_category(category: str, config: Dict) -> transforms.Compose:
     """Get image transforms for a category."""
     resize_shape = get_resize_shape(category)
 
-    # ImageNet normalization
     normalize_mean = config.get("preprocessing", {}).get(
         "normalize_mean", [0.485, 0.456, 0.406]
     )
@@ -62,13 +36,11 @@ def get_transforms(category: str, config: Dict) -> transforms.Compose:
         "normalize_std", [0.229, 0.224, 0.225]
     )
 
-    transform = transforms.Compose([
+    return transforms.Compose([
         transforms.Resize(resize_shape),
         transforms.ToTensor(),
         transforms.Normalize(mean=normalize_mean, std=normalize_std),
     ])
-
-    return transform
 
 
 def train_single_category(
@@ -76,35 +48,23 @@ def train_single_category(
     data_dir: Path,
     output_dir: Path,
     config: Dict,
-    logger: logging.Logger,
+    logger,
 ) -> Dict:
-    """Train PatchCore model for a single category.
-
-    Args:
-        category: Object category name.
-        data_dir: Path to AutoVI dataset.
-        output_dir: Output directory for models.
-        config: Configuration dictionary.
-        logger: Logger instance.
-
-    Returns:
-        Training statistics dictionary.
-    """
-    logger.info(f"=" * 60)
+    """Train PatchCore model for a single category."""
+    logger.info(f"{'=' * 60}")
     logger.info(f"Training PatchCore for category: {category}")
-    logger.info(f"=" * 60)
+    logger.info(f"{'=' * 60}")
 
     # Get transforms
-    transform = get_transforms(category, config)
+    transform = get_transforms_for_category(category, config)
 
-    # Create dataset (training set, good samples only)
+    # Create dataset
     dataset = AutoVIDataset(
         root_dir=str(data_dir),
         categories=[category],
         split="train",
         transform=transform,
     )
-
     logger.info(f"Training samples: {len(dataset)}")
 
     # Create dataloader
@@ -119,7 +79,7 @@ def train_single_category(
         pin_memory=True,
     )
 
-    # Create PatchCore model
+    # Create model
     model_config = config.get("model", {})
     model = PatchCore(
         backbone_name=model_config.get("backbone", "wide_resnet50_2"),
@@ -130,7 +90,7 @@ def train_single_category(
         use_faiss=True,
     )
 
-    # Train (build memory bank)
+    # Train
     seed = config.get("seed", 42)
     max_samples = model_config.get("max_memory_samples", None)
     model.fit(dataloader, max_samples=max_samples, seed=seed)
@@ -156,20 +116,10 @@ def train_all_categories(
     output_dir: Path,
     config: Dict,
     categories: Optional[List[str]] = None,
-    logger: Optional[logging.Logger] = None,
+    logger=None,
 ) -> Dict:
-    """Train PatchCore models for all categories.
-
-    Args:
-        data_dir: Path to AutoVI dataset.
-        output_dir: Output directory.
-        config: Configuration dictionary.
-        categories: List of categories to train. If None, trains all.
-        logger: Logger instance.
-
-    Returns:
-        Summary statistics dictionary.
-    """
+    """Train PatchCore models for all categories."""
+    import logging
     if logger is None:
         logger = logging.getLogger(__name__)
 
@@ -203,7 +153,8 @@ def train_all_categories(
     return all_stats
 
 
-def main():
+def parse_args():
+    """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         description="Train centralized PatchCore models on AutoVI dataset"
     )
@@ -238,15 +189,18 @@ def main():
         default=42,
         help="Random seed",
     )
+    return parser.parse_args()
 
-    args = parser.parse_args()
+
+def main():
+    args = parse_args()
 
     # Setup paths
     data_dir = Path(args.data_dir)
     output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Setup logging
+    # Setup output directory and logging
+    setup_output_directory(str(output_dir))
     logger = setup_logging(output_dir)
     logger.info(f"Arguments: {args}")
 
@@ -259,12 +213,11 @@ def main():
         logger.warning(f"Config file not found: {config_path}, using defaults")
         config = {}
 
-    # Override seed if specified
+    # Override seed
     config["seed"] = args.seed
 
     # Set random seeds
-    torch.manual_seed(args.seed)
-    np.random.seed(args.seed)
+    set_random_seeds(args.seed)
 
     # Train models
     train_all_categories(

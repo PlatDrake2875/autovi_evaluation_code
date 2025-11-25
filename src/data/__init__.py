@@ -3,6 +3,7 @@
 from .autovi_dataset import AutoVIDataset, CATEGORIES, SMALL_OBJECTS, LARGE_OBJECTS, get_resize_shape
 from .preprocessing import Preprocessor, get_transforms, get_test_transform, get_train_transform
 from .partitioner import IIDPartitioner, CategoryPartitioner, create_partition
+from .datasets import CategoryTransformDataset, TransformedSubset
 
 __all__ = [
     "AutoVIDataset",
@@ -17,4 +18,6 @@ __all__ = [
     "IIDPartitioner",
     "CategoryPartitioner",
     "create_partition",
+    "CategoryTransformDataset",
+    "TransformedSubset",
 ]
