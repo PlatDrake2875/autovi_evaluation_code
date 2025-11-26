@@ -1,0 +1,402 @@
+\documentclass{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+
+\usepackage[utf-8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usepackage{xcolor}
+
+% Set colors for Madrid theme
+\definecolor{politehnica_red}{RGB}{204, 0, 0}
+\definecolor{politehnica_blue}{RGB}{0, 51, 102}
+\setbeamercolor{palette primary}{bg=politehnica_blue, fg=white}
+\setbeamercolor{palette secondary}{bg=politehnica_blue, fg=white}
+\setbeamercolor{palette tertiary}{bg=politehnica_red, fg=white}
+
+% Title page configuration
+\title{Federated Learning for Industrial Anomaly Detection}
+\subtitle{Stage 1: Implementation and Results}
+
+\author{
+  Patrascu Adrian Octavian \and Cojocariu Raul \and Miriam Modiga
+}
+
+\institute{
+  Faculty of Automatic Control and Computer Science \\
+  National University of Science and Technology POLITEHNICA Bucharest
+}
+
+\date{November 26, 2025}
+
+\begin{document}
+
+% ============================================================================
+% SLIDE 1: Title Slide
+% ============================================================================
+
+\frame{\titlepage}
+
+% ============================================================================
+% SLIDE 2: Motivation & Problem Statement
+% ============================================================================
+
+\begin{frame}{Motivation \& Problem Statement}
+
+\begin{block}{Why Federated Learning for Manufacturing?}
+  \begin{itemize}
+    \item Visual inspection is critical for automotive quality control
+    \item Traditional centralized ML faces significant challenges in deployment
+  \end{itemize}
+\end{block}
+
+\begin{block}{Three Key Challenges}
+  \begin{enumerate}
+    \item \textbf{Data Privacy}: Manufacturing data contains proprietary process information
+    \item \textbf{Data Silos}: Different factories operate independently with isolated data
+    \item \textbf{Regulatory Constraints}: Quality control data cannot be easily transferred
+  \end{enumerate}
+\end{block}
+
+\begin{block}{Three Research Questions}
+  \begin{itemize}
+    \item Can federated learning achieve competitive anomaly detection performance?
+    \item How does data heterogeneity affect federated model performance?
+    \item What are privacy-accuracy trade-offs in federated industrial inspection?
+  \end{itemize}
+\end{block}
+
+\end{frame}
+
+% ============================================================================
+% SLIDE 3: AutoVI Dataset
+% ============================================================================
+
+\begin{frame}{AutoVI Dataset}
+
+\begin{columns}
+\column{0.5\textwidth}
+  \begin{block}{Dataset Overview}
+    \begin{itemize}
+      \item Real industrial dataset from Renault Group
+      \item 6 automotive component categories
+      \item 3,950 total images
+      \item Pixel-level ground truth annotations
+      \item Realistic production conditions
+    \end{itemize}
+  \end{block}
+
+\column{0.5\textwidth}
+  \begin{table}
+    \centering
+    \tiny
+    \begin{tabular}{lcccc}
+      \toprule
+      \textbf{Category} & \textbf{Train} & \textbf{Test} & \textbf{Anom.} \\
+      \midrule
+      engine\_wiring & 285 & 607 & 322 \\
+      pipe\_clip & 195 & 337 & 142 \\
+      pipe\_staple & 191 & 305 & 117 \\
+      tank\_screw & 318 & 413 & 95 \\
+      underbody\_pipes & 161 & 345 & 184 \\
+      underbody\_screw & 373 & 392 & 18 \\
+      \midrule
+      \textbf{Total} & \textbf{1,523} & \textbf{2,399} & \textbf{878} \\
+      \bottomrule
+    \end{tabular}
+    \caption{\footnotesize AutoVI Statistics}
+  \end{table}
+\end{columns}
+
+\end{frame}
+
+% ============================================================================
+% SLIDE 4: Federated Setup (6 Clients)
+% ============================================================================
+
+\begin{frame}{Federated Setup: Stage 1}
+
+\begin{block}{Category-Based Client Partitioning}
+  Each client represents a different production line specializing in one component type:
+\end{block}
+
+\begin{table}
+  \centering
+  \small
+  \begin{tabular}{llcc}
+    \toprule
+    \textbf{Client} & \textbf{Category} & \textbf{Train} & \textbf{Test} \\
+    \midrule
+    1 & engine\_wiring & 285 & 607 \\
+    2 & pipe\_clip & 195 & 337 \\
+    3 & pipe\_staple & 191 & 305 \\
+    4 & tank\_screw & 318 & 413 \\
+    5 & underbody\_pipes & 161 & 345 \\
+    6 & underbody\_screw & 373 & 392 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Stage 1: Independent Client Configuration}
+\end{table}
+
+\vspace{0.3cm}
+
+\begin{block}{Stage 1 Approach}
+  \begin{itemize}
+    \item Each client trains \textbf{independently} on assigned category
+    \item No aggregation in Stage 1 (establishes baseline)
+    \item Total: 1,523 training images across 6 clients
+  \end{itemize}
+\end{block}
+
+\end{frame}
+
+% ============================================================================
+% SLIDE 5: PatchCore Method - Architecture
+% ============================================================================
+
+\begin{frame}{PatchCore Method: Architecture}
+
+\begin{columns}
+\column{0.5\textwidth}
+  \begin{block}{Feature Extraction}
+    \begin{itemize}
+      \item Pre-trained WideResNet-50-2 backbone
+      \item Layer 2: [512, H/4, W/4] local features
+      \item Layer 3: [1024, H/8, W/8] semantic features
+      \item Concatenated: 1536-dimensional patches
+    \end{itemize}
+  \end{block}
+
+\column{0.5\textwidth}
+  \begin{block}{Memory Bank Construction}
+    \begin{itemize}
+      \item Greedy k-center coreset selection
+      \item Keep 10\% of representative patches
+      \item Ensures diverse feature space coverage
+      \item Maintains computational efficiency
+    \end{itemize}
+  \end{block}
+\end{columns}
+
+\vspace{0.3cm}
+
+\begin{block}{Anomaly Scoring}
+  Distance to nearest neighbor in memory bank:
+  \begin{equation*}
+    s(x, p) = \min_{m \in M} \|f(x, p) - m\|_2
+  \end{equation*}
+  where $f(x,p)$ is the feature at patch position $p$ and $M$ is the memory bank.
+\end{block}
+
+\end{frame}
+
+% ============================================================================
+% SLIDE 6: PatchCore Method - Inference Pipeline
+% ============================================================================
+
+\begin{frame}{PatchCore Method: Inference Pipeline}
+
+\begin{block}{From Image to Anomaly Map}
+  \begin{enumerate}
+    \item Extract multi-scale features (Layer 2 + Layer 3)
+    \item Apply local neighborhood averaging (3×3 smoothing)
+    \item Reshape to patch vectors
+    \item Query FAISS index for nearest neighbor distances
+    \item Upsample anomaly scores to original image resolution
+    \item Compute image-level score (maximum of spatial map)
+  \end{enumerate}
+\end{block}
+
+\begin{block}{Evaluation Metrics}
+  \begin{itemize}
+    \item \textbf{AUC-sPRO}: Pixel-level localization accuracy (at FPR: 0.01, 0.05, 0.1, 0.3, 1.0)
+    \item \textbf{AUC-ROC}: Image-level classification accuracy
+  \end{itemize}
+\end{block}
+
+\vspace{0.3cm}
+
+\textit{\small Note: Feature extractor (WideResNet-50-2) is frozen; no training of network weights}
+
+\end{frame}
+
+% ============================================================================
+% SLIDE 7: Implementation Status
+% ============================================================================
+
+\begin{frame}{Stage 1: Implementation Status}
+
+\begin{columns}
+\column{0.5\textwidth}
+  \begin{block}{\textcolor{green}{Completed} ✓}
+    \begin{itemize}
+      \item Data pipeline for all 6 categories
+      \item AutoVIDataset class with lazy loading
+      \item Feature extraction via WideResNet-50-2
+      \item Memory bank construction (greedy coreset)
+      \item FAISS indexing for efficient inference
+      \item Client-server orchestration framework
+      \item AUC-sPRO \& AUC-ROC evaluation metrics
+    \end{itemize}
+  \end{block}
+
+\column{0.5\textwidth}
+  \begin{block}{\textcolor{orange}{In Progress} ⏳}
+    \begin{itemize}
+      \item PatchCore baseline training
+      \item Per-client experimental results
+      \item Per-category performance analysis
+      \item Anomaly map generation \& visualization
+    \end{itemize}
+  \end{block}
+\end{columns}
+
+\vspace{0.3cm}
+
+\begin{alertblock}{Awaiting Results}
+  Stage 1 experimental results will populate Tables 3 and 4 in technical report
+\end{alertblock}
+
+\end{frame}
+
+% ============================================================================
+% SLIDE 8: Expected Results Structure
+% ============================================================================
+
+\begin{frame}{Expected Results: Baseline Performance}
+
+\begin{block}{Table 3: Centralized Baseline}
+  \begin{table}
+    \centering
+    \tiny
+    \begin{tabular}{lccccc}
+      \toprule
+      \textbf{Category} & \textbf{@FPR=0.01} & \textbf{@FPR=0.05} & \textbf{@FPR=0.1} & \textbf{@FPR=0.3} & \textbf{AUC-ROC} \\
+      \midrule
+      engine\_wiring & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} \\
+      pipe\_clip & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} \\
+      pipe\_staple & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} \\
+      tank\_screw & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} \\
+      underbody\_pipes & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} \\
+      underbody\_screw & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} & \textcolor{gray}{TODO} \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+\end{block}
+
+\begin{block}{Expected Analysis}
+  \begin{itemize}
+    \item Categories with more training data → better performance
+    \item Structural anomalies easier to detect than logical anomalies
+    \item Performance variation across categories due to defect types
+  \end{itemize}
+\end{block}
+
+\end{frame}
+
+% ============================================================================
+% SLIDE 9: Stage 2 Roadmap
+% ============================================================================
+
+\begin{frame}{Stage 2 Roadmap: Privacy \& Fairness}
+
+\begin{columns}
+\column{0.5\textwidth}
+  \begin{block}{Privacy Enhancement}
+    \begin{itemize}
+      \item Differential Privacy (DP-SGD)
+      \item Calibrated noise on local coresets
+      \item Privacy budget tracking ($\epsilon$, $\delta$)
+      \item Formal privacy guarantees
+    \end{itemize}
+  \end{block}
+
+\column{0.5\textwidth}
+  \begin{block}{Fairness: Cross-Category Equity}
+    \begin{itemize}
+      \item Fairness-aware aggregation weighting
+      \item Per-client performance monitoring
+      \item Address non-IID data heterogeneity
+      \item Reduce performance variance
+    \end{itemize}
+  \end{block}
+\end{columns}
+
+\vspace{0.5cm}
+
+\begin{block}{Combined Goal}
+  Transform Stage 1 baseline into a \textbf{production-ready system} for real manufacturing environments where:
+  \begin{itemize}
+    \item Data privacy is paramount
+    \item Regulatory compliance is required
+    \item Cross-facility fairness is essential
+  \end{itemize}
+\end{block}
+
+\end{frame}
+
+% ============================================================================
+% SLIDE 10: Conclusion
+% ============================================================================
+
+\begin{frame}{Conclusion}
+
+\begin{block}{Stage 1 Achievements}
+  \begin{enumerate}
+    \item Complete data infrastructure for AutoVI dataset with federated partitioning
+    \item PatchCore implementation (feature extraction, memory bank, FAISS inference)
+    \item Federated system design with 6 independent clients
+  \end{enumerate}
+\end{block}
+
+\begin{block}{Next Steps}
+  \begin{itemize}
+    \item Execute baseline training on all 6 clients
+    \item Collect and analyze per-category performance metrics
+    \item Generate anomaly map visualizations
+  \end{itemize}
+\end{block}
+
+\begin{block}{Stage 2 Vision}
+  Enhance Stage 1 with privacy-preserving mechanisms and fairness constraints to create a trustworthy federated learning system for industrial visual inspection.
+\end{block}
+
+\begin{center}
+  \vspace{0.5cm}
+  \Large \textbf{Questions?}
+\end{center}
+
+\end{frame}
+
+% ============================================================================
+% CLOSING SLIDE
+% ============================================================================
+
+\begin{frame}[plain]
+  \begin{center}
+    \vspace{1cm}
+    \Huge Federated Learning for \\ Industrial Anomaly Detection
+
+    \vspace{1cm}
+    \Large Thank You!
+
+    \vspace{1.5cm}
+    \normalsize
+    Patrascu Adrian Octavian \\ Cojocariu Raul \\ Miriam Modiga
+
+    \vspace{0.5cm}
+    \small
+    POLITEHNICA Bucharest
+
+    \vspace{1.5cm}
+    \tiny
+    \textit{For more information, see Technical Report: Stage 1}
+  \end{center}
+\end{frame}
+
+\end{document}
