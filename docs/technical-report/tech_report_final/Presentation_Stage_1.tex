@@ -20,19 +20,36 @@
 \setbeamercolor{palette tertiary}{bg=politehnica_red, fg=white}
 
 % Title page configuration
-\title{Federated Learning for Industrial Anomaly Detection}
+\title[Federated Anomaly Detection]{Federated Learning for Industrial Anomaly Detection}
 \subtitle{Stage 1: Implementation and Results}
 
-\author{
+\author[Patrascu A. et al.]{
   Patrascu Adrian Octavian \and Cojocariu Raul \and Miriam Modiga
 }
 
-\institute{
+\institute[POLITEHNICA]{
   Faculty of Automatic Control and Computer Science \\
   National University of Science and Technology POLITEHNICA Bucharest
 }
 
 \date{November 26, 2025}
+
+% Custom footer to prevent overflow
+\setbeamertemplate{footline}
+{
+  \leavevmode%
+  \hbox{%
+    \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,center]{author in head/foot}%
+      \usebeamerfont{author in head/foot}Patrascu A., Cojocariu R., Modiga M.
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,center]{title in head/foot}%
+      \usebeamerfont{title in head/foot}POLITEHNICA Bucharest
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,right]{date in head/foot}%
+      \usebeamerfont{date in head/foot}\insertframenumber{}/\inserttotalframenumber\hspace*{2ex}
+    \end{beamercolorbox}}%
+  \vskip0pt%
+}
 
 \begin{document}
 
@@ -43,38 +60,56 @@
 \frame{\titlepage}
 
 % ============================================================================
-% SLIDE 2: Motivation & Problem Statement
+% SLIDE 2: Motivation & Key Challenges
 % ============================================================================
 
-\begin{frame}{Motivation \& Problem Statement}
+\begin{frame}{Motivation \& Key Challenges}
 
 \begin{block}{Why Federated Learning for Manufacturing?}
+  \small
   \begin{itemize}
-    \item Visual inspection is critical for automotive quality control
-    \item Traditional centralized ML faces significant challenges in deployment
+    \item Visual inspection critical for automotive quality control
+    \item Traditional centralized ML faces significant deployment challenges
   \end{itemize}
 \end{block}
 
 \begin{block}{Three Key Challenges}
+  \small
   \begin{enumerate}
-    \item \textbf{Data Privacy}: Manufacturing data contains proprietary process information
-    \item \textbf{Data Silos}: Different factories operate independently with isolated data
-    \item \textbf{Regulatory Constraints}: Quality control data cannot be easily transferred
+    \item \textbf{Data Privacy}: Proprietary manufacturing process information
+    \item \textbf{Data Silos}: Independent factories with isolated data repositories
+    \item \textbf{Regulatory Constraints}: Quality control data transfer restrictions
   \end{enumerate}
-\end{block}
-
-\begin{block}{Three Research Questions}
-  \begin{itemize}
-    \item Can federated learning achieve competitive anomaly detection performance?
-    \item How does data heterogeneity affect federated model performance?
-    \item What are privacy-accuracy trade-offs in federated industrial inspection?
-  \end{itemize}
 \end{block}
 
 \end{frame}
 
 % ============================================================================
-% SLIDE 3: AutoVI Dataset
+% SLIDE 3: Research Questions
+% ============================================================================
+
+\begin{frame}{Research Questions}
+
+\begin{block}{Three Key Questions}
+  \small
+  \begin{enumerate}
+    \item Can federated learning achieve competitive anomaly detection performance compared to centralized approaches?
+    \item How does data heterogeneity affect federated model performance in industrial settings?
+    \item What are the privacy-accuracy trade-offs in federated industrial inspection systems?
+  \end{enumerate}
+\end{block}
+
+\vspace{0.5cm}
+
+\begin{alertblock}{Stage 1 Focus}
+  \small
+  Stage 1 establishes baseline performance with independent client training (no aggregation yet)
+\end{alertblock}
+
+\end{frame}
+
+% ============================================================================
+% SLIDE 4: AutoVI Dataset
 % ============================================================================
 
 \begin{frame}{AutoVI Dataset}
@@ -116,7 +151,7 @@
 \end{frame}
 
 % ============================================================================
-% SLIDE 4: Federated Setup (6 Clients)
+% SLIDE 5: Federated Setup (6 Clients)
 % ============================================================================
 
 \begin{frame}{Federated Setup: Stage 1}
@@ -156,7 +191,7 @@
 \end{frame}
 
 % ============================================================================
-% SLIDE 5: PatchCore Method - Architecture
+% SLIDE 6: PatchCore Method - Architecture
 % ============================================================================
 
 \begin{frame}{PatchCore Method: Architecture}
@@ -196,7 +231,7 @@
 \end{frame}
 
 % ============================================================================
-% SLIDE 6: PatchCore Method - Inference Pipeline
+% SLIDE 7: PatchCore Method - Inference Pipeline
 % ============================================================================
 
 \begin{frame}{PatchCore Method: Inference Pipeline}
@@ -226,46 +261,46 @@
 \end{frame}
 
 % ============================================================================
-% SLIDE 7: Implementation Status
+% SLIDE 8: Implementation Status
 % ============================================================================
 
 \begin{frame}{Stage 1: Implementation Status}
-
-\begin{columns}
-\column{0.5\textwidth}
-  \begin{block}{\textcolor{green}{Completed} ✓}
-    \begin{itemize}
-      \item Data pipeline for all 6 categories
-      \item AutoVIDataset class with lazy loading
-      \item Feature extraction via WideResNet-50-2
-      \item Memory bank construction (greedy coreset)
-      \item FAISS indexing for efficient inference
-      \item Client-server orchestration framework
-      \item AUC-sPRO \& AUC-ROC evaluation metrics
-    \end{itemize}
-  \end{block}
-
-\column{0.5\textwidth}
-  \begin{block}{\textcolor{orange}{In Progress} ⏳}
-    \begin{itemize}
-      \item PatchCore baseline training
-      \item Per-client experimental results
-      \item Per-category performance analysis
-      \item Anomaly map generation \& visualization
-    \end{itemize}
-  \end{block}
-\end{columns}
-
-\vspace{0.3cm}
 
 \begin{alertblock}{Awaiting Results}
   Stage 1 experimental results will populate Tables 3 and 4 in technical report
 \end{alertblock}
 
+\vspace{0.2cm}
+
+\begin{columns}
+\column{0.48\textwidth}
+  \begin{block}{\textcolor{green}{Completed} ✓}
+    \small
+    \begin{itemize}
+      \item Data pipeline
+      \item Feature extraction
+      \item Memory bank
+      \item FAISS indexing
+      \item Evaluation metrics
+    \end{itemize}
+  \end{block}
+
+\column{0.48\textwidth}
+  \begin{block}{\textcolor{orange}{In Progress} ⏳}
+    \small
+    \begin{itemize}
+      \item Baseline training
+      \item Experimental results
+      \item Performance analysis
+      \item Visualization
+    \end{itemize}
+  \end{block}
+\end{columns}
+
 \end{frame}
 
 % ============================================================================
-% SLIDE 8: Expected Results Structure
+% SLIDE 9: Expected Results Structure
 % ============================================================================
 
 \begin{frame}{Expected Results: Baseline Performance}
@@ -300,7 +335,7 @@
 \end{frame}
 
 % ============================================================================
-% SLIDE 9: Stage 2 Roadmap
+% SLIDE 10: Stage 2 Roadmap
 % ============================================================================
 
 \begin{frame}{Stage 2 Roadmap: Privacy \& Fairness}
@@ -327,9 +362,10 @@
   \end{block}
 \end{columns}
 
-\vspace{0.5cm}
+\vspace{0.2cm}
 
 \begin{block}{Combined Goal}
+  \small
   Transform Stage 1 baseline into a \textbf{production-ready system} for real manufacturing environments where:
   \begin{itemize}
     \item Data privacy is paramount
@@ -341,7 +377,7 @@
 \end{frame}
 
 % ============================================================================
-% SLIDE 10: Conclusion
+% SLIDE 11: Conclusion
 % ============================================================================
 
 \begin{frame}{Conclusion}
