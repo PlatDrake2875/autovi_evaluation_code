@@ -12,12 +12,12 @@
 
 \onehalfspacing
 
-\title{Federated Anomaly Detection for Industrial Visual Inspection:\\Stage 1 Implementation Report}
+\title{Federated Learning for Industrial Anomaly Detection}
 
 \author{
-  Miriam \\
-  Department of Computer Science and Engineering \\
-  Université de technologie de Compiègne
+  Patrascu Adrian Octavian$^1$, Cojocariu Raul$^2$, Miriam Modiga$^3$ \\
+  $^1$$^2$$^3$Faculty of Automatic Control and Computer Science \\
+  National University of Science and Technology POLITEHNICA Bucharest
 }
 
 \date{\today}
@@ -44,41 +44,13 @@ This Stage 1 report presents the foundational implementation with three main con
 
 \section{Related Work}
 
-\subsection{Anomaly Detection in Industrial Settings}
+Unsupervised anomaly detection in industrial quality control employs reconstruction-based methods (autoencoders, GANs), feature embedding approaches like PatchCore \cite{roth2022patchcore}, and knowledge distillation. PatchCore extracts features from pre-trained CNNs and stores representative normal patches in memory banks, detecting anomalies as patches distant from the memory bank. We adopt PatchCore for its strong performance, interpretability, and suitability for federated adaptation.
 
-Unsupervised anomaly detection has gained significant attention in industrial quality control, where labeled defect data is scarce and defect types are diverse. Recent deep learning approaches can be categorized into three paradigms.
-
-\textit{Reconstruction-based methods} use autoencoders and GANs to reconstruct normal images; anomalies produce high reconstruction errors. While conceptually simple, these methods struggle with complex textures and subtle defects.
-
-\textit{Feature embedding methods}, exemplified by PatchCore \cite{roth2022patchcore}, extract features from pre-trained CNNs and store representative normal patches in a memory bank. During inference, anomalies are detected as patches distant from the memory bank. PatchCore achieves state-of-the-art performance on benchmarks like MVTec AD and is well-suited for federated adaptation since memory banks can be aggregated across clients.
-
-\textit{Knowledge distillation methods} like EfficientAD train student networks to mimic teacher networks on normal data; discrepancies indicate anomalies.
-
-We adopt PatchCore for its strong performance, interpretability (anomaly maps directly correspond to patch distances), and natural adaptation to federated settings.
-
-\subsection{Federated Learning}
-
-Federated Learning \cite{mcmahan2017communication} enables distributed model training across multiple clients without sharing raw data. The canonical FedAvg algorithm aggregates client model updates using weighted averaging:
-
-\begin{equation}
-w_{t+1} = \sum_{k=1}^{K} \frac{n_k}{n} w_k^t
-\end{equation}
-
-where $w_k^t$ represents client $k$'s model weights and $n_k$ is the local dataset size.
-
-Key challenges in FL include: (1) \textit{Non-IID data}: Performance degrades when client data distributions differ significantly \cite{zhao2018federated}; (2) \textit{Communication efficiency}: Transmitting large model updates is costly; (3) \textit{Privacy guarantees}: Additional mechanisms (differential privacy, secure aggregation) are needed for formal privacy.
-
-\subsection{Gap in Literature}
-
-Limited work has explored FL for anomaly detection. Existing approaches focus on federated autoencoders for intrusion detection and sensor data anomaly detection. To our knowledge, \textbf{no prior work has applied federated learning to PatchCore-based industrial anomaly detection}. Our approach of aggregating memory banks (rather than neural network weights) presents unique opportunities for communication efficiency and privacy, which we investigate in this work.
+Federated Learning \cite{mcmahan2017communication} enables distributed training without raw data sharing. Key challenges include non-IID data distributions \cite{zhao2018federated}, communication costs, and privacy guarantees \cite{kairouz2019advances}. To our knowledge, no prior work applies federated learning to PatchCore-based industrial anomaly detection. Our memory bank aggregation approach presents a novel combination of communication efficiency and privacy preservation for manufacturing inspection systems.
 
 \section{Dataset Description}
 
-\subsection{AutoVI Dataset Overview}
-
-The \textit{Automotive Visual Inspection (AutoVI)} dataset \cite{autovidataset} is a genuine industrial dataset developed by Renault Group and Université de technologie de Compiègne. Unlike synthetic benchmarks, AutoVI captures real production line conditions including variations in lighting, moving components during capture, and authentic defect patterns from actual production.
-
-The dataset contains 6 object categories from automotive assembly: engine wiring (wire harness connections), pipe clips, pipe staples, tank screws, and underbody assemblies. Image resolutions reflect camera configurations: small objects (400×400 pixels) and large objects (1000×750 pixels).
+The \textit{Automotive Visual Inspection (AutoVI)} dataset \cite{autovidataset} is a genuine industrial dataset developed by Renault Group containing 6 object categories from automotive assembly with real production conditions. Image resolutions are category-specific: 400×400 pixels (small objects) and 1000×750 pixels (large objects).
 
 \subsection{Dataset Statistics}
 
@@ -102,11 +74,7 @@ underbody\_screw & 373 & 392 & 374 & 18 & 1 \\
 \caption{AutoVI Dataset Statistics. Training data contains only normal images; test data includes both normal and anomalous samples with pixel-level ground truth annotations.}
 \end{table}
 
-Defects are categorized as structural anomalies (physical damage, misalignment) and logical anomalies (missing/misplaced components). Ground truth annotations are provided as pixel-level segmentation masks, enabling evaluation of both detection and localization performance.
-
-\subsection{Preprocessing Pipeline}
-
-Our preprocessing follows evaluation code specifications: (1) Resizing to category-specific dimensions (400×400 for small objects, 1000×750 for large); (2) ImageNet normalization (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) to match WideResNet-50-2 pretraining; (3) PyTorch tensor conversion in [C, H, W] format.
+Defects are categorized as structural anomalies (physical damage, misalignment) and logical anomalies (missing/misplaced components) with pixel-level ground truth masks. Preprocessing includes resizing to category-specific dimensions, ImageNet normalization (mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]), and tensor conversion.
 
 \subsection{Federated Data Partitioning}
 
@@ -150,18 +118,6 @@ s(x, p) = \min_{m \in M} \|f(x, p) - m\|_2
 
 where $f(x, p)$ is the feature at patch position $p$ in image $x$, and $M$ is the memory bank. Scores are upsampled to pixel resolution using bilinear interpolation.
 
-\subsection{Implementation Architecture}
-
-Our implementation leverages PyTorch with several key architectural components:
-
-\textit{Data Pipeline.} The \texttt{AutoVIDataset} class implements lazy loading: images are loaded on-demand from disk, transformed (resized and normalized), and discarded after processing, maintaining constant memory usage regardless of dataset size. The class handles both training (good samples only) and test splits (good and anomalous samples).
-
-\textit{Feature Extractor.} The \texttt{FeatureExtractor} class wraps WideResNet-50-2 with PyTorch hooks to capture intermediate activations from Layer 2 and Layer 3. The backbone is frozen (not trainable) to preserve pre-trained ImageNet representations.
-
-\textit{Memory Bank and FAISS Indexing.} The \texttt{MemoryBank} class stores selected patch features and builds FAISS indices for efficient nearest neighbor search. FAISS (Facebook AI Similarity Search) uses optimized linear algebra for batch distance computation, achieving 10-100× speedup over naive approaches.
-
-\textit{Client and Server Orchestration.} \texttt{PatchCoreClient} extracts features from local data and builds local coresets. \texttt{FederatedServer} receives client coresets and performs aggregation (Stage 2). \texttt{FederatedPatchCore} orchestrates the overall training and inference pipeline.
-
 \subsection{Evaluation Metrics}
 
 \textit{AUC-sPRO (Localization).} The saturated Per-Region Overlap (sPRO) metric measures pixel-level localization accuracy with saturation to prevent over-crediting large detections. We compute AUC-sPRO at multiple false positive rates: 0.01, 0.05, 0.1, 0.3, 1.0.
@@ -170,24 +126,11 @@ Our implementation leverages PyTorch with several key architectural components:
 
 \section{Stage 1 Implementation and Results}
 
-\subsection{Training Protocol}
+\subsection{Training Protocol and Expected Results}
 
-Stage 1 establishes baseline performance with independent local training. Each of the 6 clients:
+Stage 1 establishes baseline performance with independent local training. Each of the 6 clients loads assigned category data, extracts features via WideResNet-50-2, builds local memory bank via greedy coreset selection (10\%), and evaluates on local test set. This approach provides category-specific baselines and establishes foundation for Stage 2 aggregation.
 
-\begin{enumerate}
-\item Loads assigned category training data (good images only)
-\item Extracts features using shared pre-trained WideResNet-50-2
-\item Builds local memory bank via greedy coreset selection (10\%)
-\item Evaluates on local test set (both good and anomalous images)
-\item Computes AUC-sPRO and AUC-ROC metrics
-\end{enumerate}
-
-This approach provides category-specific baseline performance, identifies performance variations across object types, and establishes the foundation for federated aggregation in Stage 2.
-
-\subsection{Expected Results Structure}
-
-% TODO: Table 3 - Centralized Baseline Results
-\textcolor{red}{\textbf{TODO:}} Table 3 to show centralized baseline results (AUC-sPRO at FPR thresholds and AUC-ROC for all categories).
+\textbf{TODO:} Centralized baseline results (AUC-sPRO at FPR thresholds and AUC-ROC for all categories):
 
 \begin{table}[h]
 \centering
@@ -196,21 +139,20 @@ This approach provides category-specific baseline performance, identifies perfor
 \toprule
 \textbf{Category} & \textbf{@FPR=0.01} & \textbf{@FPR=0.05} & \textbf{@FPR=0.1} & \textbf{@FPR=0.3} & \textbf{AUC-ROC} \\
 \midrule
-engine\_wiring & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} \\
-pipe\_clip & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} \\
-pipe\_staple & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} \\
-tank\_screw & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} \\
-underbody\_pipes & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} \\
-underbody\_screw & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} \\
+engine\_wiring & TODO & TODO & TODO & TODO & TODO \\
+pipe\_clip & TODO & TODO & TODO & TODO & TODO \\
+pipe\_staple & TODO & TODO & TODO & TODO & TODO \\
+tank\_screw & TODO & TODO & TODO & TODO & TODO \\
+underbody\_pipes & TODO & TODO & TODO & TODO & TODO \\
+underbody\_screw & TODO & TODO & TODO & TODO & TODO \\
 \midrule
-\textbf{Mean} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} \\
+\textbf{Mean} & TODO & TODO & TODO & TODO & TODO \\
 \bottomrule
 \end{tabular}
 \caption{Centralized Baseline Results. Awaiting PatchCore implementation completion.}
 \end{table}
 
-% TODO: Table 4 - Per-Client Baseline Performance
-\textcolor{red}{\textbf{TODO:}} Table 4 to show per-client baseline performance (AUC-sPRO at select FPR thresholds and AUC-ROC for each client).
+\textbf{TODO:} Per-client baseline performance (AUC-sPRO at select FPR thresholds and AUC-ROC for each client):
 
 \begin{table}[h]
 \centering
@@ -219,63 +161,24 @@ underbody\_screw & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{re
 \toprule
 \textbf{Client} & \textbf{Category} & \textbf{Train} & \textbf{@FPR=0.01} & \textbf{@FPR=0.05} & \textbf{@FPR=0.1} & \textbf{AUC-ROC} \\
 \midrule
-1 & engine\_wiring & 285 & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} \\
-2 & pipe\_clip & 195 & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} \\
-3 & pipe\_staple & 191 & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} \\
-4 & tank\_screw & 318 & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} \\
-5 & underbody\_pipes & 161 & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} \\
-6 & underbody\_screw & 373 & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} \\
+1 & engine\_wiring & 285 & TODO & TODO & TODO & TODO \\
+2 & pipe\_clip & 195 & TODO & TODO & TODO & TODO \\
+3 & pipe\_staple & 191 & TODO & TODO & TODO & TODO \\
+4 & tank\_screw & 318 & TODO & TODO & TODO & TODO \\
+5 & underbody\_pipes & 161 & TODO & TODO & TODO & TODO \\
+6 & underbody\_screw & 373 & TODO & TODO & TODO & TODO \\
 \midrule
-\textbf{Mean} & \textbf{-} & \textbf{1,523} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} & \textcolor{red}{TODO} \\
+\textbf{Mean} & \textbf{-} & \textbf{1,523} & TODO & TODO & TODO & TODO \\
 \bottomrule
 \end{tabular}
 \caption{Per-Client Independent Baseline Performance. Awaiting Stage 1 experimental completion.}
 \end{table}
 
-\subsection{Analysis Plan}
+\section{Discussion}
 
-Upon completion, results analysis will include:
+\textbf{Stage 1 Status:} Data infrastructure is complete with all 6 categories loaded and partitioned. PatchCore implementation (feature extraction, memory bank, inference) has been developed. Federated client-server orchestration framework is ready. AUC-sPRO and AUC-ROC evaluation metrics are implemented. Awaiting experimental results from baseline training.
 
-\textit{Category-wise Performance.} Identify best and worst performing categories. Expected trends: categories with more training data (e.g., underbody\_screw: 373 samples) may achieve better performance; smaller categories (e.g., pipe\_clip: 195 samples) may show higher variance.
-
-\textit{Defect Type Analysis.} Structural anomalies (physical damage) typically outperform logical anomalies (missing components) due to clearer visual signatures.
-
-\textit{Data Imbalance Effects.} Analyze performance correlation with dataset size and test set composition (ratio of normal to anomalous samples).
-
-\textit{Qualitative Analysis.} \textcolor{red}{\textbf{TODO:}} Figure 1 to show sample anomaly maps demonstrating: (1) True Positives: model correctly localizes defects with high anomaly scores; (2) True Negatives: good images show uniformly low anomaly scores; (3) Challenging cases: logical defects showing weaker localization. Include 2-3 representative examples per category.
-
-\section{Discussion and Next Steps}
-
-\subsection{Stage 1 Status}
-
-Our Stage 1 implementation achieves the following:
-
-\begin{itemize}
-\item \textbf{Data Infrastructure:} Complete. All 6 categories loaded, partitioned, and validated.
-\item \textbf{PatchCore Implementation:} Feature extraction, memory bank, and inference modules developed. In-progress: baseline training and evaluation.
-\item \textbf{Federated Architecture:} Client and server orchestration framework ready. Awaiting results from independent client training.
-\item \textbf{Evaluation Framework:} AUC-sPRO and AUC-ROC metrics implemented. Awaiting experimental data.
-\end{itemize}
-
-\subsection{Stage 2 Roadmap}
-
-Stage 2 will enhance Stage 1 by introducing two trust dimensions:
-
-\textit{Privacy Enhancement: Differential Privacy (DP-SGD).} Formal privacy guarantees are essential for industrial deployment. We will integrate DP-SGD for feature extraction, adding calibrated noise to local coresets before sharing with the server. Privacy-utility trade-offs will be quantified using privacy budget parameters $\epsilon$ and $\delta$.
-
-\textit{Fairness: Cross-Category Performance Equity.} Category-based partitioning creates heterogeneous data distributions. We will implement fairness-aware aggregation weighting, develop per-client performance monitoring, and evaluate performance variance across categories as a fairness metric. This ensures smaller clients (e.g., pipe\_clip with 195 samples) are not disadvantaged.
-
-\textit{Technical Enhancements:} Priority improvements include FedProx regularization for non-IID data, iterative memory refinement over multiple rounds, and Grad-CAM interpretability for anomaly localization.
-
-\subsection{Stage 2 Evaluation Plan}
-
-Stage 2 evaluation will address three dimensions:
-
-\textit{Privacy Analysis:} Privacy budget tracking, membership inference attack resistance, and accuracy-vs-privacy curves for different $\epsilon$ values.
-
-\textit{Fairness Analysis:} Per-category performance variance, Gini coefficient of client contributions, and Pareto frontier analysis (accuracy vs. fairness).
-
-\textit{Trade-off Analysis:} Multi-objective optimization results and recommended configurations for different industrial deployment scenarios.
+\textbf{Stage 2 Preview:} Future work will introduce privacy preservation via differential privacy (DP-SGD) with calibrated noise added to local coresets before server transmission. We will implement fairness-aware aggregation weighting to address non-IID data heterogeneity and per-category performance variance. This will transform Stage 1 into a production-ready system suitable for real manufacturing environments where data privacy, regulatory compliance, and cross-facility fairness are paramount.
 
 \section{Conclusion}
 
@@ -305,40 +208,10 @@ Zhao, Y., Li, M., Lai, L., Suda, N., Civin, D., \& Chandra, V. (2018).
 Federated Learning with Non-IID Data.
 \textit{arXiv preprint arXiv:1806.00582}.
 
-\bibitem{li2020fedprox}
-Li, T., Sahu, A. K., Zaheer, M., Srivastava, M., \& Song, D. (2020).
-Federated Optimization in Heterogeneous Networks.
-In \textit{Proceedings of the 3rd Conference on Machine Learning and Systems (MLSys)}.
-
-\bibitem{he2016wide}
-He, K., Zhang, X., Ren, S., \& Sun, J. (2016).
-Identity Mappings in Deep Residual Networks.
-In \textit{European Conference on Computer Vision (ECCV)}. Springer, Cham.
-
-\bibitem{zagoruyko2016wide}
-Zagoruyko, S., \& Komodakis, N. (2016).
-Wide Residual Networks.
-In \textit{British Machine Vision Conference (BMVC)}.
-
 \bibitem{kairouz2019advances}
 Kairouz, P., McMahan, H. B., Avent, B., Bellet, A., Bennis, M., Bhagoji, A. N., ... \& Zhao, S. (2019).
 Advances and Open Problems in Federated Learning.
 \textit{arXiv preprint arXiv:1912.04977}.
-
-\bibitem{bergman2020deep}
-Bergman, L., \& Hoshen, Y. (2020).
-Deep Nearest Neighbor Anomaly Detection.
-\textit{arXiv preprint arXiv:2002.08625}.
-
-\bibitem{johnson2019survey}
-Johnson, J. M., \& Khoshgoftaar, T. M. (2019).
-Survey on Deep Learning with Class Imbalance.
-\textit{Journal of Big Data}, 6(1), 27.
-
-\bibitem{duchi2011adaptive}
-Duchi, J., Hazan, E., \& Singer, Y. (2011).
-Adaptive Subgradient Methods for Online Learning and Stochastic Optimization.
-\textit{The Journal of Machine Learning Research}, 12, 2121--2159.
 
 \bibitem{abadi2016deep}
 Abadi, M., Chu, A., Goodfellow, I., McMahan, H. B., Mironov, I., Talwar, K., \& Zhang, L. (2016).
