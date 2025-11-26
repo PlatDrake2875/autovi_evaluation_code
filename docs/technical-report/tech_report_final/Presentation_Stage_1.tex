@@ -157,12 +157,13 @@
 \begin{frame}{Federated Setup: Stage 1}
 
 \begin{block}{Category-Based Client Partitioning}
-  Each client represents a different production line specializing in one component type:
+  \small
+  Each client represents a different production line for one component type
 \end{block}
 
 \begin{table}
   \centering
-  \small
+  \tiny
   \begin{tabular}{llcc}
     \toprule
     \textbf{Client} & \textbf{Category} & \textbf{Train} & \textbf{Test} \\
@@ -175,14 +176,15 @@
     6 & underbody\_screw & 373 & 392 \\
     \bottomrule
   \end{tabular}
-  \caption{Stage 1: Independent Client Configuration}
+  \caption{\tiny Stage 1 Client Configuration}
 \end{table}
 
-\vspace{0.3cm}
+\vspace{0.1cm}
 
 \begin{block}{Stage 1 Approach}
+  \tiny
   \begin{itemize}
-    \item Each client trains \textbf{independently} on assigned category
+    \item Each client trains independently on assigned category
     \item No aggregation in Stage 1 (establishes baseline)
     \item Total: 1,523 training images across 6 clients
   \end{itemize}
@@ -237,26 +239,28 @@
 \begin{frame}{PatchCore Method: Inference Pipeline}
 
 \begin{block}{From Image to Anomaly Map}
+  \tiny
   \begin{enumerate}
     \item Extract multi-scale features (Layer 2 + Layer 3)
-    \item Apply local neighborhood averaging (3×3 smoothing)
+    \item Apply neighborhood averaging (3×3 smoothing)
     \item Reshape to patch vectors
-    \item Query FAISS index for nearest neighbor distances
-    \item Upsample anomaly scores to original image resolution
-    \item Compute image-level score (maximum of spatial map)
+    \item Query FAISS index for distances
+    \item Upsample scores to original resolution
+    \item Compute image-level score (max of map)
   \end{enumerate}
 \end{block}
 
 \begin{block}{Evaluation Metrics}
+  \tiny
   \begin{itemize}
-    \item \textbf{AUC-sPRO}: Pixel-level localization accuracy (at FPR: 0.01, 0.05, 0.1, 0.3, 1.0)
-    \item \textbf{AUC-ROC}: Image-level classification accuracy
+    \item \textbf{AUC-sPRO}: Pixel-level localization (FPR: 0.01, 0.05, 0.1, 0.3)
+    \item \textbf{AUC-ROC}: Image-level classification
   \end{itemize}
 \end{block}
 
-\vspace{0.3cm}
+\vspace{0.1cm}
 
-\textit{\small Note: Feature extractor (WideResNet-50-2) is frozen; no training of network weights}
+\textit{\tiny Feature extractor (WideResNet-50-2) frozen; no network weight training}
 
 \end{frame}
 
@@ -343,9 +347,10 @@
 \begin{columns}
 \column{0.5\textwidth}
   \begin{block}{Privacy Enhancement}
+    \tiny
     \begin{itemize}
       \item Differential Privacy (DP-SGD)
-      \item Calibrated noise on local coresets
+      \item Calibrated noise on coresets
       \item Privacy budget tracking ($\epsilon$, $\delta$)
       \item Formal privacy guarantees
     \end{itemize}
@@ -353,24 +358,25 @@
 
 \column{0.5\textwidth}
   \begin{block}{Fairness: Cross-Category Equity}
+    \tiny
     \begin{itemize}
       \item Fairness-aware aggregation weighting
       \item Per-client performance monitoring
-      \item Address non-IID data heterogeneity
+      \item Address non-IID heterogeneity
       \item Reduce performance variance
     \end{itemize}
   \end{block}
 \end{columns}
 
-\vspace{0.2cm}
+\vspace{0.1cm}
 
 \begin{block}{Combined Goal}
-  \small
-  Transform Stage 1 baseline into a \textbf{production-ready system} for real manufacturing environments where:
+  \tiny
+  Transform Stage 1 into a \textbf{production-ready system} where:
   \begin{itemize}
     \item Data privacy is paramount
-    \item Regulatory compliance is required
-    \item Cross-facility fairness is essential
+    \item Regulatory compliance required
+    \item Cross-facility fairness essential
   \end{itemize}
 \end{block}
 
@@ -383,28 +389,31 @@
 \begin{frame}{Conclusion}
 
 \begin{block}{Stage 1 Achievements}
+  \tiny
   \begin{enumerate}
     \item Complete data infrastructure for AutoVI dataset with federated partitioning
-    \item PatchCore implementation (feature extraction, memory bank, FAISS inference)
+    \item PatchCore implementation (feature extraction, memory bank, FAISS)
     \item Federated system design with 6 independent clients
   \end{enumerate}
 \end{block}
 
 \begin{block}{Next Steps}
+  \tiny
   \begin{itemize}
     \item Execute baseline training on all 6 clients
-    \item Collect and analyze per-category performance metrics
+    \item Analyze per-category performance metrics
     \item Generate anomaly map visualizations
   \end{itemize}
 \end{block}
 
 \begin{block}{Stage 2 Vision}
-  Enhance Stage 1 with privacy-preserving mechanisms and fairness constraints to create a trustworthy federated learning system for industrial visual inspection.
+  \tiny
+  Enhance Stage 1 with privacy-preserving and fairness mechanisms to create a trustworthy federated learning system for industrial inspection.
 \end{block}
 
 \begin{center}
-  \vspace{0.5cm}
-  \Large \textbf{Questions?}
+  \vspace{0.2cm}
+  \normalsize \textbf{Questions?}
 \end{center}
 
 \end{frame}
