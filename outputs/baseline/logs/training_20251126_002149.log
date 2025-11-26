@@ -1,0 +1,35 @@
+2025-11-26 00:21:49,682 - INFO - Arguments: Namespace(config='experiments/configs/baseline/patchcore_config.yaml', data_dir='/path/to/autovi', output_dir='outputs/baseline', objects=['all'], seed=42)
+2025-11-26 00:21:49,683 - INFO - Loaded config from experiments/configs/baseline/patchcore_config.yaml
+2025-11-26 00:21:49,684 - INFO - Training categories: ['engine_wiring', 'pipe_clip', 'pipe_staple', 'tank_screw', 'underbody_pipes', 'underbody_screw']
+2025-11-26 00:21:49,684 - INFO - ============================================================
+2025-11-26 00:21:49,684 - INFO - Training PatchCore for category: engine_wiring
+2025-11-26 00:21:49,684 - INFO - ============================================================
+2025-11-26 00:21:49,684 - INFO - Training samples: 0
+2025-11-26 00:21:53,907 - ERROR - Error training engine_wiring: need at least one array to concatenate
+2025-11-26 00:21:53,907 - INFO - ============================================================
+2025-11-26 00:21:53,907 - INFO - Training PatchCore for category: pipe_clip
+2025-11-26 00:21:53,907 - INFO - ============================================================
+2025-11-26 00:21:53,907 - INFO - Training samples: 0
+2025-11-26 00:21:54,459 - ERROR - Error training pipe_clip: need at least one array to concatenate
+2025-11-26 00:21:54,459 - INFO - ============================================================
+2025-11-26 00:21:54,459 - INFO - Training PatchCore for category: pipe_staple
+2025-11-26 00:21:54,459 - INFO - ============================================================
+2025-11-26 00:21:54,460 - INFO - Training samples: 0
+2025-11-26 00:21:55,007 - ERROR - Error training pipe_staple: need at least one array to concatenate
+2025-11-26 00:21:55,007 - INFO - ============================================================
+2025-11-26 00:21:55,007 - INFO - Training PatchCore for category: tank_screw
+2025-11-26 00:21:55,007 - INFO - ============================================================
+2025-11-26 00:21:55,008 - INFO - Training samples: 0
+2025-11-26 00:21:55,545 - ERROR - Error training tank_screw: need at least one array to concatenate
+2025-11-26 00:21:55,545 - INFO - ============================================================
+2025-11-26 00:21:55,545 - INFO - Training PatchCore for category: underbody_pipes
+2025-11-26 00:21:55,545 - INFO - ============================================================
+2025-11-26 00:21:55,546 - INFO - Training samples: 0
+2025-11-26 00:21:56,082 - ERROR - Error training underbody_pipes: need at least one array to concatenate
+2025-11-26 00:21:56,082 - INFO - ============================================================
+2025-11-26 00:21:56,082 - INFO - Training PatchCore for category: underbody_screw
+2025-11-26 00:21:56,082 - INFO - ============================================================
+2025-11-26 00:21:56,083 - INFO - Training samples: 0
+2025-11-26 00:21:56,624 - ERROR - Error training underbody_screw: need at least one array to concatenate
+2025-11-26 00:21:56,625 - INFO - Training summary saved to outputs/baseline/training_summary.json
+2025-11-26 00:21:56,625 - INFO - Training complete!

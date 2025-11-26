@@ -1,0 +1,7 @@
+2025-11-26 00:24:49,759 - INFO - Arguments: Namespace(config='experiments/configs/baseline/patchcore_config.yaml', data_dir='/home/ldg2875/Downloads/auto_vi', output_dir='outputs/baseline', objects=['all'], seed=42)
+2025-11-26 00:24:49,760 - INFO - Loaded config from experiments/configs/baseline/patchcore_config.yaml
+2025-11-26 00:24:49,760 - INFO - Training categories: ['engine_wiring', 'pipe_clip', 'pipe_staple', 'tank_screw', 'underbody_pipes', 'underbody_screw']
+2025-11-26 00:24:49,760 - INFO - ============================================================
+2025-11-26 00:24:49,760 - INFO - Training PatchCore for category: engine_wiring
+2025-11-26 00:24:49,760 - INFO - ============================================================
+2025-11-26 00:24:49,762 - INFO - Training samples: 285

@@ -1,0 +1,35 @@
+%%{init: {'theme': 'base'}}%%
+flowchart TB
+    subgraph DataPrep["Evaluation Setup"]
+        E1["Load Test Images"] --> E2["Load Ground Truth\nMasks"]
+        E2 --> E3["Load Model\nMemory Bank"]
+    end
+
+    subgraph AnomalyScoring["Anomaly Map Generation"]
+        AS1["Extract Test Image\nFeatures"] --> AS2["Compute Distance\nto Memory Bank"]
+        AS2 --> AS3["Generate Pixel-wise\nAnomaly Scores"]
+        AS3 --> AS4["Upsample to Original\nResolution"]
+        AS4 --> AS5["Save Anomaly Maps\nas PNG"]
+    end
+
+    subgraph MetricsCompute["Metrics Computation"]
+        M1["Load via\nevaluate_experiment.py"] --> M2["MetricsAggregator"]
+        M2 --> M3["Compute sPRO\nper Defect"]
+        M3 --> M4["Compute FPR\nThresholds"]
+        M4 --> M5["Binary Refinement"]
+        M5 --> M6["AUC-sPRO at\nFPR limits"]
+        M6 --> M7["AUC-ROC\nClassification"]
+    end
+
+    subgraph Results["Results Output"]
+        R1["Per-Object\nMetrics JSON"] --> R2["Comparison Tables"]
+        R2 --> R3["Visualization Plots"]
+        R3 --> R4["Export to Report"]
+    end
+
+    DataPrep --> AnomalyScoring --> MetricsCompute --> Results
+
+    style DataPrep fill:#e1f5fe
+    style AnomalyScoring fill:#e8f5e9
+    style MetricsCompute fill:#fff3e0
+    style Results fill:#fce4ec

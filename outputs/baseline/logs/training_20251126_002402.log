@@ -1,0 +1,102 @@
+2025-11-26 00:24:02,286 - INFO - Arguments: Namespace(config='experiments/configs/baseline/patchcore_config.yaml', data_dir='/home/ldg2875/Downloads/auto_vi', output_dir='outputs/baseline', objects=['all'], seed=42)
+2025-11-26 00:24:02,287 - INFO - Loaded config from experiments/configs/baseline/patchcore_config.yaml
+2025-11-26 00:24:02,287 - INFO - Training categories: ['engine_wiring', 'pipe_clip', 'pipe_staple', 'tank_screw', 'underbody_pipes', 'underbody_screw']
+2025-11-26 00:24:02,287 - INFO - ============================================================
+2025-11-26 00:24:02,287 - INFO - Training PatchCore for category: engine_wiring
+2025-11-26 00:24:02,287 - INFO - ============================================================
+2025-11-26 00:24:02,289 - INFO - Training samples: 285
+2025-11-26 00:24:03,283 - ERROR - Error training engine_wiring: Caught TypeError in DataLoader worker process 0.
+Original Traceback (most recent call last):
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 172, in collate
+    key: collate(
+         ^^^^^^^^
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 240, in collate
+    raise TypeError(default_collate_err_msg_format.format(elem_type))
+TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <class 'NoneType'>
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/worker.py", line 351, in _worker_loop
+    data = fetcher.fetch(index)  # type: ignore[possibly-undefined]
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/fetch.py", line 55, in fetch
+    return self.collate_fn(data)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 398, in default_collate
+    return collate(batch, collate_fn_map=default_collate_fn_map)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 192, in collate
+    key: collate([d[key] for d in batch], collate_fn_map=collate_fn_map)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 240, in collate
+    raise TypeError(default_collate_err_msg_format.format(elem_type))
+TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <class 'NoneType'>
+
+2025-11-26 00:24:03,283 - INFO - ============================================================
+2025-11-26 00:24:03,283 - INFO - Training PatchCore for category: pipe_clip
+2025-11-26 00:24:03,283 - INFO - ============================================================
+2025-11-26 00:24:03,449 - INFO - Training samples: 195
+2025-11-26 00:24:04,241 - ERROR - Error training pipe_clip: Caught TypeError in DataLoader worker process 0.
+Original Traceback (most recent call last):
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 172, in collate
+    key: collate(
+         ^^^^^^^^
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 240, in collate
+    raise TypeError(default_collate_err_msg_format.format(elem_type))
+TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <class 'NoneType'>
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/worker.py", line 351, in _worker_loop
+    data = fetcher.fetch(index)  # type: ignore[possibly-undefined]
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/fetch.py", line 55, in fetch
+    return self.collate_fn(data)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 398, in default_collate
+    return collate(batch, collate_fn_map=default_collate_fn_map)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 192, in collate
+    key: collate([d[key] for d in batch], collate_fn_map=collate_fn_map)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 240, in collate
+    raise TypeError(default_collate_err_msg_format.format(elem_type))
+TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <class 'NoneType'>
+
+2025-11-26 00:24:04,241 - INFO - ============================================================
+2025-11-26 00:24:04,241 - INFO - Training PatchCore for category: pipe_staple
+2025-11-26 00:24:04,241 - INFO - ============================================================
+2025-11-26 00:24:24,264 - INFO - Training samples: 191
+2025-11-26 00:24:25,059 - ERROR - Error training pipe_staple: Caught TypeError in DataLoader worker process 0.
+Original Traceback (most recent call last):
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 172, in collate
+    key: collate(
+         ^^^^^^^^
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 240, in collate
+    raise TypeError(default_collate_err_msg_format.format(elem_type))
+TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <class 'NoneType'>
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/worker.py", line 351, in _worker_loop
+    data = fetcher.fetch(index)  # type: ignore[possibly-undefined]
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/fetch.py", line 55, in fetch
+    return self.collate_fn(data)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 398, in default_collate
+    return collate(batch, collate_fn_map=default_collate_fn_map)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 192, in collate
+    key: collate([d[key] for d in batch], collate_fn_map=collate_fn_map)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ldg2875/autovi_evaluation_code/.venv/lib/python3.12/site-packages/torch/utils/data/_utils/collate.py", line 240, in collate
+    raise TypeError(default_collate_err_msg_format.format(elem_type))
+TypeError: default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found <class 'NoneType'>
+
+2025-11-26 00:24:25,059 - INFO - ============================================================
+2025-11-26 00:24:25,059 - INFO - Training PatchCore for category: tank_screw
+2025-11-26 00:24:25,059 - INFO - ============================================================

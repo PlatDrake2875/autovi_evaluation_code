@@ -1,0 +1,44 @@
+%%{init: {'theme': 'base'}}%%
+flowchart TB
+    subgraph Centralized["Centralized Baseline"]
+        CT1["Load All\nTraining Data"] --> CT2["Initialize\nWideResNet-50"]
+        CT2 --> CT3["Extract Patch\nFeatures"]
+        CT3 --> CT4["Coreset\nSubsampling"]
+        CT4 --> CT5["Build Memory\nBank"]
+        CT5 --> CT6["Save Model"]
+    end
+
+    subgraph Federated["Federated PatchCore"]
+        FT1["Initialize Global\nMemory Bank"] --> FT2["Broadcast to\nClients"]
+
+        subgraph Round["Communication Round"]
+            FT2 --> FT3["Client Training\nin Parallel"]
+
+            subgraph ClientK["Client k"]
+                FT3 --> FT4["Load Local\nNormal Images"]
+                FT4 --> FT5["Extract Local\nPatch Features"]
+                FT5 --> FT6["Local Coreset\nSelection"]
+                FT6 --> FT7["Send to Server"]
+            end
+
+            FT7 --> FT8["Aggregate\nMemory Banks"]
+            FT8 --> FT9["Global Coreset\nSelection"]
+            FT9 --> FT10["Update Global\nMemory Bank"]
+        end
+
+        FT10 --> FT11{"Converged?"}
+        FT11 -->|No| FT2
+        FT11 -->|Yes| FT12["Save Federated\nModel"]
+    end
+
+    subgraph Comparison["Comparison Analysis"]
+        CT6 --> COMP["Compare\nPerformance"]
+        FT12 --> COMP
+        COMP --> REPORT["Generate Metrics\nReport"]
+    end
+
+    style Centralized fill:#e3f2fd
+    style Federated fill:#f3e5f5
+    style Round fill:#fff8e1
+    style ClientK fill:#e0f7fa
+    style Comparison fill:#c8e6c9
