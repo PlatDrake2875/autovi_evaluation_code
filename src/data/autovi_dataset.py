@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Tuple, Callable
 
 import numpy as np
 from PIL import Image
+from loguru import logger
 
 # Dataset categories
 CATEGORIES = [
@@ -99,7 +100,7 @@ class AutoVIDataset:
             category_dir = self.root_dir / category / self.split
 
             if not category_dir.exists():
-                print(f"Warning: Category directory not found: {category_dir}")
+                logger.warning(f"Category directory not found: {category_dir}")
                 continue
 
             # Load good samples (label=0)

@@ -1,21 +1,18 @@
 """PatchCore anomaly detection model implementation."""
 
-import os
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 import torch.nn.functional as F
+from loguru import logger
 from PIL import Image
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from .backbone import (
-    FeatureExtractor,
-    apply_local_neighborhood_averaging,
-    reshape_features_to_patches,
-)
+from src.util import get_device, extract_images_from_batch
+from .backbone import FeatureExtractor
 from .memory_bank import MemoryBank
 
 
@@ -58,12 +55,8 @@ class PatchCore:
         self.use_faiss = use_faiss
 
         # Set device
-        if device == "auto":
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        else:
-            self.device = torch.device(device)
-
-        print(f"PatchCore using device: {self.device}")
+        self.device = get_device(device)
+        logger.info(f"PatchCore using device: {self.device}")
 
         # Initialize feature extractor
         self.feature_extractor = FeatureExtractor(
@@ -95,47 +88,32 @@ class PatchCore:
             max_samples: Maximum memory bank size (overrides coreset_ratio).
             seed: Random seed for coreset selection.
         """
-        print("Extracting features from training images...")
+        logger.info("Extracting features from training images...")
 
         all_features = []
         self.feature_extractor.eval()
 
         with torch.no_grad():
             for batch in tqdm(dataloader, desc="Feature extraction"):
-                # Handle different batch formats
-                if isinstance(batch, dict):
-                    images = batch["image"]
-                elif isinstance(batch, (list, tuple)):
-                    images = batch[0]
-                else:
-                    images = batch
-
+                images = extract_images_from_batch(batch)
                 images = images.to(self.device)
 
                 # Store image size from first batch
                 if self.image_size is None:
                     self.image_size = (images.shape[2], images.shape[3])
 
-                # Extract features
+                # Get feature map for size tracking
                 features = self.feature_extractor(images)
-
-                # Store feature map size
                 if self.feature_map_size is None:
                     self.feature_map_size = (features.shape[2], features.shape[3])
 
-                # Apply local neighborhood averaging
-                if self.neighborhood_size > 1:
-                    features = apply_local_neighborhood_averaging(
-                        features, self.neighborhood_size
-                    )
-
-                # Reshape to patch vectors
-                patches = reshape_features_to_patches(features)
+                # Extract patches with neighborhood averaging
+                patches = self.feature_extractor.extract_patches(images, self.neighborhood_size)
                 all_features.append(patches.cpu().numpy())
 
         # Concatenate all features
         all_features = np.concatenate(all_features, axis=0)
-        print(f"Total patches extracted: {all_features.shape[0]}")
+        logger.info(f"Total patches extracted: {all_features.shape[0]}")
 
         # Build memory bank with coreset subsampling
         self.memory_bank = MemoryBank(
@@ -175,19 +153,12 @@ class PatchCore:
         batch_size = images.shape[0]
 
         with torch.no_grad():
-            # Extract features
+            # Get features for dimension info
             features = self.feature_extractor(images)
-
-            # Apply local neighborhood averaging
-            if self.neighborhood_size > 1:
-                features = apply_local_neighborhood_averaging(
-                    features, self.neighborhood_size
-                )
-
             feature_h, feature_w = features.shape[2], features.shape[3]
 
-            # Reshape to patches
-            patches = reshape_features_to_patches(features)
+            # Extract patches
+            patches = self.feature_extractor.extract_patches(images, self.neighborhood_size)
 
         # Get anomaly scores from memory bank
         anomaly_scores = self.memory_bank.get_anomaly_scores(patches.cpu().numpy())
@@ -274,7 +245,7 @@ class PatchCore:
         config_path = str(path) + "_config.npz"
         np.savez(config_path, **config)
 
-        print(f"Model saved to {path}")
+        logger.info(f"Model saved to {path}")
 
     def load(self, path: str) -> None:
         """Load model from file.
@@ -310,7 +281,7 @@ class PatchCore:
         )
         self.memory_bank.load(memory_bank_path)
 
-        print(f"Model loaded from {path}")
+        logger.info(f"Model loaded from {path}")
 
     def get_stats(self) -> Dict:
         """Get model statistics.

@@ -11,11 +11,13 @@ from typing import Dict, List, Optional, Tuple, Union
 import numpy as np
 import torch
 import torch.nn.functional as F
+from loguru import logger
 from PIL import Image
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from src.models.patchcore import PatchCore
+from src.util import get_device
 from src.models.backbone import (
     FeatureExtractor,
     apply_local_neighborhood_averaging,
@@ -63,12 +65,9 @@ class AnomalyScorer:
         self.use_faiss = use_faiss
 
         # Set device
-        if device == "auto":
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        else:
-            self.device = torch.device(device)
+        self.device = get_device(device)
 
-        print(f"AnomalyScorer using device: {self.device}")
+        logger.info(f"AnomalyScorer using device: {self.device}")
 
         # Initialize feature extractor
         self.feature_extractor = FeatureExtractor(
@@ -89,7 +88,7 @@ class AnomalyScorer:
         Args:
             model_path: Path to the saved model (without extension).
         """
-        print(f"Loading centralized model from {model_path}...")
+        logger.info(f"Loading centralized model from {model_path}...")
 
         # Load memory bank
         memory_bank_path = str(model_path) + "_memory_bank.npz"
@@ -100,7 +99,7 @@ class AnomalyScorer:
         )
         self.memory_bank.load(memory_bank_path)
 
-        print(f"Loaded memory bank with {len(self.memory_bank)} patches")
+        logger.info(f"Loaded memory bank with {len(self.memory_bank)} patches")
 
     def load_federated_memory_bank(self, memory_bank_path: str) -> None:
         """Load a federated global memory bank.
@@ -108,7 +107,7 @@ class AnomalyScorer:
         Args:
             memory_bank_path: Path to the global memory bank file.
         """
-        print(f"Loading federated memory bank from {memory_bank_path}...")
+        logger.info(f"Loading federated memory bank from {memory_bank_path}...")
 
         self.memory_bank = MemoryBank(
             feature_dim=self.feature_dim,
@@ -123,14 +122,11 @@ class AnomalyScorer:
             # Load raw numpy array
             data = np.load(memory_bank_path)
             if isinstance(data, np.ndarray):
-                self.memory_bank.features = data
-                self.memory_bank._build_index()
+                self.memory_bank.set_features(data)
             else:
-                # Assume it's a .npz with features key
-                self.memory_bank.features = data["features"]
-                self.memory_bank._build_index()
+                self.memory_bank.set_features(data["features"])
 
-        print(f"Loaded memory bank with {len(self.memory_bank)} patches")
+        logger.info(f"Loaded memory bank with {len(self.memory_bank)} patches")
 
     def load_memory_bank_from_array(self, features: np.ndarray) -> None:
         """Load memory bank from a numpy array directly.
@@ -143,10 +139,9 @@ class AnomalyScorer:
             use_faiss=self.use_faiss,
             use_gpu=self.device.type == "cuda",
         )
-        self.memory_bank.features = features.astype(np.float32)
-        self.memory_bank._build_index()
+        self.memory_bank.set_features(features)
 
-        print(f"Loaded memory bank with {len(self.memory_bank)} patches")
+        logger.info(f"Loaded memory bank with {len(self.memory_bank)} patches")
 
     def generate_anomaly_map(
         self,
@@ -238,7 +233,7 @@ class AnomalyScorer:
 
         saved_paths: Dict[str, List[str]] = {}
 
-        print(f"Generating anomaly maps for {len(dataset)} images...")
+        logger.info(f"Generating anomaly maps for {len(dataset)} images...")
 
         for idx in tqdm(range(len(dataset)), desc="Generating anomaly maps"):
             sample = dataset[idx]
@@ -270,7 +265,7 @@ class AnomalyScorer:
                 saved_paths[category] = []
             saved_paths[category].append(str(save_path))
 
-        print(f"Saved {sum(len(v) for v in saved_paths.values())} anomaly maps to {output_dir}")
+        logger.info(f"Saved {sum(len(v) for v in saved_paths.values())} anomaly maps to {output_dir}")
 
         return saved_paths
 
@@ -305,9 +300,9 @@ def generate_anomaly_maps(
     all_saved_paths: Dict[str, Dict[str, List[str]]] = {}
 
     for category in categories:
-        print(f"\n{'='*50}")
-        print(f"Processing category: {category}")
-        print(f"{'='*50}")
+        logger.info(f"\n{'='*50}")
+        logger.info(f"Processing category: {category}")
+        logger.info(f"{'='*50}")
 
         # Create scorer for this category
         scorer = AnomalyScorer(device=device)
@@ -364,7 +359,7 @@ def generate_anomaly_maps_from_patchcore(
 
     saved_paths: Dict[str, List[str]] = {}
 
-    print(f"Generating anomaly maps for {len(dataset)} images...")
+    logger.info(f"Generating anomaly maps for {len(dataset)} images...")
 
     for idx in tqdm(range(len(dataset)), desc="Generating anomaly maps"):
         sample = dataset[idx]
@@ -401,6 +396,6 @@ def generate_anomaly_maps_from_patchcore(
             saved_paths[defect_type] = []
         saved_paths[defect_type].append(str(save_path))
 
-    print(f"Saved {sum(len(v) for v in saved_paths.values())} anomaly maps to {output_dir}")
+    logger.info(f"Saved {sum(len(v) for v in saved_paths.values())} anomaly maps to {output_dir}")
 
     return saved_paths

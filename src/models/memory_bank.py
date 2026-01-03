@@ -4,6 +4,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 import torch
+from loguru import logger
 
 try:
     import faiss
@@ -67,7 +68,7 @@ class MemoryBank:
         else:
             target_size = max(1, int(n_samples * coreset_ratio))
 
-        print(f"Selecting {target_size} samples from {n_samples} via coreset subsampling...")
+        logger.info(f"Selecting {target_size} samples from {n_samples} via coreset subsampling...")
 
         # Apply coreset subsampling
         if target_size < n_samples:
@@ -78,7 +79,7 @@ class MemoryBank:
         else:
             self.features = features.copy()
 
-        print(f"Memory bank size: {self.features.shape}")
+        logger.info(f"Memory bank size: {self.features.shape}")
 
         # Build FAISS index
         self._build_index()
@@ -184,7 +185,7 @@ class MemoryBank:
             "feature_dim": self.feature_dim,
         }
         np.savez(path, **data)
-        print(f"Memory bank saved to {path}")
+        logger.info(f"Memory bank saved to {path}")
 
     def load(self, path: str) -> None:
         """Load memory bank from file.
@@ -196,7 +197,39 @@ class MemoryBank:
         self.features = data["features"]
         self.feature_dim = int(data["feature_dim"])
         self._build_index()
-        print(f"Memory bank loaded from {path}, shape: {self.features.shape}")
+        logger.info(f"Memory bank loaded from {path}, shape: {self.features.shape}")
+
+    def set_features(self, features: np.ndarray) -> None:
+        """Set memory bank features directly (for federated learning).
+
+        Args:
+            features: Feature array of shape [N, D].
+        """
+        self.features = np.ascontiguousarray(features.astype(np.float32))
+        self._build_index()
+        logger.info(f"Memory bank set with {len(self.features)} patches")
+
+    @classmethod
+    def from_array(
+        cls,
+        features: np.ndarray,
+        use_faiss: bool = True,
+        use_gpu: bool = False,
+    ) -> 'MemoryBank':
+        """Create a MemoryBank directly from feature array.
+
+        Args:
+            features: Feature array [N, D].
+            use_faiss: Whether to use FAISS.
+            use_gpu: Whether to use GPU for FAISS.
+
+        Returns:
+            Initialized MemoryBank with features indexed.
+        """
+        feature_dim = features.shape[1]
+        bank = cls(feature_dim=feature_dim, use_faiss=use_faiss, use_gpu=use_gpu)
+        bank.set_features(features)
+        return bank
 
     def __len__(self) -> int:
         if self.features is None:
@@ -249,7 +282,7 @@ def greedy_coreset_selection(
         selected.append(next_idx)
 
         if (i + 1) % 1000 == 0:
-            print(f"  Coreset selection: {i + 1}/{target_size - 1}")
+            logger.debug(f"  Coreset selection: {i + 1}/{target_size - 1}")
 
     return np.array(selected)
 

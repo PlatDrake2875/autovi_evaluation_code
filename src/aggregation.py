@@ -6,12 +6,19 @@ The important class for users of this module is MetricsAggregator.
 from typing import Sequence, Optional, Callable, Iterable
 
 import numpy as np
+from loguru import logger
 
 from src.image import GroundTruthMap, AnomalyMap, get_file_path_repr
 from src.metrics import get_fp_tn_areas_per_image, get_fp_rates
 from src.metrics import get_spros_of_defects_of_images
 from src.util import get_auc_for_max_fpr, take, flatten_2d
 from src.util import get_sorted_nested_arrays, concat_nested_arrays
+
+# Constants for threshold refinement
+MAX_SAMPLED_SCORES = 10_000_000  # Maximum scores for memory efficiency
+DEFAULT_NUM_THRESHOLDS = 50
+DEFAULT_THRESHOLD_EPSILON = 1e-6
+TRIANGLE_AREA_FACTOR = 0.25  # For max_area calculation in binary_refinement
 
 
 def binary_refinement(init_queries: Sequence,
@@ -69,7 +76,7 @@ def binary_refinement(init_queries: Sequence,
     # smaller than the tolerated area are not considered as candidates for
     # further refinement of the curve.
     candidates = []
-    max_area = 0.25 * max_distance**2
+    max_area = TRIANGLE_AREA_FACTOR * max_distance**2
     for i in range(len(init_queries) - 1):
         distance = np.linalg.norm(init_values[i] - init_values[i + 1])
 
@@ -85,7 +92,7 @@ def binary_refinement(init_queries: Sequence,
 
     # Sort the candidate query intervals by distance.
     candidates = sorted(candidates, key=lambda c: c[0], reverse=True)
-    print(f'Max Distance between points: {candidates[0][0]}')
+    logger.debug(f'Max Distance between points: {candidates[0][0]}')
     candidates = candidates[:max_queries_per_step]
 
     # Distribute the remaining queries to reach min_queries_per_step.
@@ -453,7 +460,9 @@ class MetricsAggregator:
         result_values = np.take(result_values_sorted, unsort_indices, axis=0)
         return result_values
 
-    def _get_initial_thresholds(self, num_thresholds=50, epsilon=1e-6):
+    def _get_initial_thresholds(
+        self, num_thresholds=DEFAULT_NUM_THRESHOLDS, epsilon=DEFAULT_THRESHOLD_EPSILON
+    ):
         """Returns initial anomaly thresholds for refining a sPRO curve.
 
         The thresholds are sorted in descending order. The first threshold is
@@ -477,9 +486,9 @@ class MetricsAggregator:
         Returns:
             A list of floats sorted in descending order.
         """
-        # sampled_scores should contain at most 10 million values to prevent
+        # sampled_scores should contain at most MAX_SAMPLED_SCORES values to prevent
         # memory overflow and keep sorting (see below) fast.
-        max_num_scores = 10_000_000
+        max_num_scores = MAX_SAMPLED_SCORES
         # Therefore, we possibly need to sample random anomaly scores from each
         # anomaly map.
         num_images = len(self.anomaly_maps)

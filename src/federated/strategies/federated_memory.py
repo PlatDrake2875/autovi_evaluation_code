@@ -1,8 +1,9 @@
 """Federated memory bank aggregation strategies for PatchCore."""
 
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
+from loguru import logger
 
 from src.models.memory_bank import greedy_coreset_selection
 
@@ -86,9 +87,9 @@ def federated_aggregate(
     client_sizes = [len(c) for c in valid_coresets]
     total_samples = sum(client_sizes)
 
-    print(f"Aggregating {len(valid_coresets)} client coresets...")
-    print(f"Client sizes: {client_sizes}")
-    print(f"Total samples: {total_samples}")
+    logger.info(f"Aggregating {len(valid_coresets)} client coresets...")
+    logger.debug(f"Client sizes: {client_sizes}")
+    logger.debug(f"Total samples: {total_samples}")
 
     # Compute weights
     if weighted_by_samples:
@@ -111,15 +112,15 @@ def federated_aggregate(
             sampled = coreset
 
         sampled_features.append(sampled)
-        print(f"  Client {i}: sampled {len(sampled)} patches (weight={weight:.3f})")
+        logger.debug(f"  Client {i}: sampled {len(sampled)} patches (weight={weight:.3f})")
 
     # Concatenate all sampled features
     all_features = np.concatenate(sampled_features, axis=0)
-    print(f"Concatenated features: {all_features.shape}")
+    logger.debug(f"Concatenated features: {all_features.shape}")
 
     # Apply global coreset selection for diversity
     if len(all_features) > global_bank_size:
-        print(f"Applying global coreset selection ({global_bank_size} from {len(all_features)})...")
+        logger.info(f"Applying global coreset selection ({global_bank_size} from {len(all_features)})...")
         selected_indices = greedy_coreset_selection(
             all_features, target_size=global_bank_size, seed=seed
         )
@@ -127,7 +128,7 @@ def federated_aggregate(
     else:
         global_bank = all_features.copy()
 
-    print(f"Global memory bank size: {global_bank.shape}")
+    logger.info(f"Global memory bank size: {global_bank.shape}")
 
     # Compile statistics
     stats = {
@@ -266,3 +267,12 @@ def diversity_preserving_aggregate(
     }
 
     return global_bank, stats
+
+
+# Strategy registry for the Open/Closed Principle
+# Maps strategy names to their implementation functions
+STRATEGY_REGISTRY: Dict[str, Callable[..., Tuple[np.ndarray, Dict]]] = {
+    "federated_coreset": federated_aggregate,
+    "simple_concatenate": simple_concatenate,
+    "diversity_preserving": diversity_preserving_aggregate,
+}

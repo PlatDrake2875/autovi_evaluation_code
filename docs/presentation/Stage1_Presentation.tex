@@ -1,12 +1,22 @@
-\documentclass[aspectratio=16:9, 12pt]{beamer}
+\documentclass[aspectratio=169, 12pt]{beamer}
 
-% Theme and color
-\usetheme{Madrid}
+% Minimal clean theme
+\usetheme{default}
 \usecolortheme{default}
-\setbeamerfont{structure}{family=\rmfamily,series=\bfseries}
+
+% Remove navigation symbols and other clutter
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+\setbeamertemplate{frametitle}{\vspace{1em}\insertframetitle}
+
+% Clean fonts
+\usefonttheme{serif}
+
+% Lots of white space
+\setbeamersize{text margin left=1.5cm, text margin right=1.5cm}
 
 % Packages
-\usepackage[utf-8]{inputenc}
+\usepackage[utf8]{inputenc}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -82,9 +92,9 @@
 \vspace{1em}
 \textbf{\Large Solution: Federated Learning}
 
-{\large \textcolor{darkgreen}{✓}} Train models \textbf{locally}, share only \textbf{model updates}\\
-{\large \textcolor{darkgreen}{✓}} No raw data leaves the facility\\
-{\large \textcolor{darkgreen}{✓}} Preserve privacy while enabling collaboration
+{\large \textcolor{darkgreen}{\checkmark}} Train models \textbf{locally}, share only \textbf{model updates}\\
+{\large \textcolor{darkgreen}{\checkmark}} No raw data leaves the facility\\
+{\large \textcolor{darkgreen}{\checkmark}} Preserve privacy while enabling collaboration
 
 \end{frame}
 
@@ -209,9 +219,9 @@
 
 \textbf{Why PatchCore?}
 \begin{itemize}
-    \item {\large {\textcolor{darkgreen}{✓}}} State-of-the-art on MVTec AD and similar datasets
-    \item {\large {\textcolor{darkgreen}{✓}}} Memory bank can be aggregated (federated-friendly)
-    \item {\large {\textcolor{darkgreen}{✓}}} Interpretable anomaly maps for quality control
+    \item {\large \textcolor{darkgreen}{\checkmark}} State-of-the-art on MVTec AD and similar datasets
+    \item {\large \textcolor{darkgreen}{\checkmark}} Memory bank can be aggregated (federated-friendly)
+    \item {\large \textcolor{darkgreen}{\checkmark}} Interpretable anomaly maps for quality control
 \end{itemize}
 
 \end{frame}
@@ -220,48 +230,190 @@
 % Slide 5: Federated Learning Setup - Stage 1
 % ============================================================================
 \begin{frame}
-\frametitle{Federated Architecture: 6 Independent Clients (Stage 1)}
+\frametitle{Federated Architecture: 5 Clients with IID Partitioning}
 
-\textbf{Each client = One product category}
+\textbf{Balanced data distribution across clients}
 
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{lllcc}
+\begin{tabular}{lccc}
 \toprule
-\textbf{Client} & \textbf{Product} & \textbf{Role} & \textbf{Train} & \textbf{Test} \\
+\textbf{Client} & \textbf{Samples} & \textbf{Patches} & \textbf{Coreset (10\%)} \\
 \midrule
-1 & engine\_wiring & Engine Assembly & 285 & 607 \\
-2 & pipe\_clip & Clip Inspection & 195 & 337 \\
-3 & pipe\_staple & Fastener Station & 191 & 305 \\
-4 & tank\_screw & Fuel Tank Line & 318 & 413 \\
-5 & underbody\_pipes & Underbody Assembly & 161 & 345 \\
-6 & underbody\_screw & Underbody Fastening & 373 & 392 \\
+Client 0 & 305 & 59,780 & 5,978 \\
+Client 1 & 305 & 59,780 & 5,978 \\
+Client 2 & 305 & 59,780 & 5,978 \\
+Client 3 & 304 & 59,584 & 5,958 \\
+Client 4 & 304 & 59,584 & 5,958 \\
+\midrule
+\textbf{Total} & \textbf{1,523} & \textbf{298,508} & \textbf{29,850} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\vspace{1em}
-\textbf{Stage 1 Protocol: No Aggregation}
-
-\begin{center}
-\textcolor{gray}{\% TODO: Diagram showing local training only}
-\end{center}
+\vspace{0.5em}
+\textbf{IID Partitioning:} Each client receives samples from all 6 categories
 
 \begin{itemize}
-    \item Each client trains \textbf{independently}
-    \item Establishes \textbf{category-specific baselines}
-    \item NO communication between clients (yet)
-    \item Foundation for Stage 2 aggregation
+    \item \textbf{Balanced distribution}: $\sim$305 samples per client
+    \item Each client has \textbf{mixed categories} (engine\_wiring, pipe\_clip, etc.)
+    \item Local coreset selection: \textbf{10\%} of extracted patches
+    \item Foundation for federated aggregation
 \end{itemize}
 
-\vspace{1em}
-\textbf{Stage 1 Goal:} Baseline performance for each product type
+\vspace{0.5em}
+\textbf{Goal:} Simulate distributed factories with similar inspection tasks
 
 \end{frame}
 
 % ============================================================================
-% Slide 6: Evaluation Metrics
+% Slide 6: Federated Memory Bank Aggregation
+% ============================================================================
+\begin{frame}
+\frametitle{Federated Memory Bank Aggregation}
+
+\begin{center}
+\begin{tikzpicture}[scale=0.55, every node/.style={font=\scriptsize}]
+    % Stage 1: Local clients in a row
+    \node[draw, rectangle, fill=blue!20, minimum width=1.2cm, minimum height=0.6cm] (c0) at (0,2.5) {C0};
+    \node[draw, rectangle, fill=blue!20, minimum width=1.2cm, minimum height=0.6cm] (c1) at (2,2.5) {C1};
+    \node[draw, rectangle, fill=blue!20, minimum width=1.2cm, minimum height=0.6cm] (c2) at (4,2.5) {C2};
+    \node[draw, rectangle, fill=blue!20, minimum width=1.2cm, minimum height=0.6cm] (c3) at (6,2.5) {C3};
+    \node[draw, rectangle, fill=blue!20, minimum width=1.2cm, minimum height=0.6cm] (c4) at (8,2.5) {C4};
+
+    % Local coreset counts
+    \node[font=\tiny] at (0,1.8) {5,978};
+    \node[font=\tiny] at (2,1.8) {5,978};
+    \node[font=\tiny] at (4,1.8) {5,978};
+    \node[font=\tiny] at (6,1.8) {5,958};
+    \node[font=\tiny] at (8,1.8) {5,958};
+
+    % Server
+    \node[draw, rectangle, fill=green!20, minimum width=2.5cm, minimum height=0.6cm] (server) at (4,0.5) {Server};
+
+    % Arrows
+    \draw[->, thick] (c0) -- (server);
+    \draw[->, thick] (c1) -- (server);
+    \draw[->, thick] (c2) -- (server);
+    \draw[->, thick] (c3) -- (server);
+    \draw[->, thick] (c4) -- (server);
+
+    % Global bank
+    \node[draw, rectangle, fill=yellow!30, minimum width=2.5cm, minimum height=0.6cm] (global) at (4,-0.8) {Global: 10K};
+    \draw[->, thick] (server) -- (global);
+\end{tikzpicture}
+\end{center}
+
+\begin{columns}[T]
+    \column{0.5\textwidth}
+    \textbf{Local Processing:}
+    \begin{itemize}
+        \item Extract 784 patches/image
+        \item Coreset: 10\% selection
+        \item Total: 29,850 patches
+    \end{itemize}
+
+    \column{0.5\textwidth}
+    \textbf{Server Aggregation:}
+    \begin{itemize}
+        \item Weighted 2x oversampling
+        \item Diversity selection
+        \item Final: 10,000 patches
+    \end{itemize}
+\end{columns}
+
+\vspace{0.5em}
+\centering
+\textbf{Compression:} 298K $\rightarrow$ 30K $\rightarrow$ 10K (\textbf{96.6\% reduction})
+
+\end{frame}
+
+% ============================================================================
+% Slide 7: Aggregation Strategies
+% ============================================================================
+\begin{frame}
+\frametitle{Aggregation Strategies}
+
+\begin{table}[H]
+\centering
+\tiny
+\begin{tabular}{lp{3cm}p{2.5cm}c}
+\toprule
+\textbf{Strategy} & \textbf{Description} & \textbf{Trade-off} & \textbf{Used} \\
+\midrule
+\textbf{Federated Coreset} & Weighted + oversampling + diversity & Fairness + diversity & \textcolor{darkgreen}{\checkmark} \\
+Simple Concatenate & Direct merge & Fast, no fairness & \\
+Diversity Preserving & Min. 100 patches/client & Small client voice & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Federated Coreset Algorithm:}
+\begin{enumerate}
+    \item Weight contributions by sample count
+    \item Oversample 2x from each client
+    \item Apply greedy coreset selection
+\end{enumerate}
+
+\textbf{Client Weights (IID):} $\sim$0.20 each
+
+\vspace{0.5em}
+\begin{center}
+\fbox{\textit{Only embeddings shared -- raw images never leave clients}}
+\end{center}
+
+\end{frame}
+
+% ============================================================================
+% Slide 8: Experimental Setup & Training Stats
+% ============================================================================
+\begin{frame}
+\frametitle{Experimental Setup \& Training Statistics}
+
+\begin{columns}[T]
+    \column{0.5\textwidth}
+    \textbf{Configuration:}
+    \begin{itemize}
+        \item Clients: 5 (IID)
+        \item Backbone: WideResNet50-2
+        \item Features: layer2 + layer3
+        \item Dimension: 1536
+        \item Image: 224$\times$224
+    \end{itemize}
+
+    \column{0.5\textwidth}
+    \textbf{Results:}
+    \begin{itemize}
+        \item Time: 173 seconds
+        \item Rounds: 1 (one-shot)
+        \item Local coreset: 10\%
+        \item Global bank: 10,000
+        \item Strategy: federated\_coreset
+    \end{itemize}
+\end{columns}
+
+\vspace{0.5em}
+\textbf{Data Flow:}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lcc}
+\toprule
+\textbf{Stage} & \textbf{Patches} & \textbf{Kept} \\
+\midrule
+Raw extraction & 298,508 & 100\% \\
+Local coreset & 29,850 & 10\% \\
+Global coreset & 10,000 & 3.4\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{frame}
+
+% ============================================================================
+% Slide 9: Evaluation Metrics
 % ============================================================================
 \begin{frame}
 \frametitle{Evaluation Metrics: AUC-sPRO and AUC-ROC}
@@ -309,46 +461,57 @@
 \end{frame}
 
 % ============================================================================
-% Slide 7: Stage 1 Results - Placeholder
+% Slide 10: Stage 1 Results
 % ============================================================================
 \begin{frame}
-\frametitle{Stage 1 Results: Per-Client Baseline Performance}
+\frametitle{Stage 1 Results: Federated Training Complete}
 
-\textbf{\% TODO: Populate with experimental results}
-
-\vspace{1em}
-\textbf{Expected Results Table:}
+\textbf{Training Statistics (Completed):}
 
 \begin{table}[H]
-\tiny
-\begin{tabular}{lcccccc}
+\centering
+\scriptsize
+\begin{tabular}{lcccc}
 \toprule
-\textbf{Client/Category} & \textbf{\# Train} & \textbf{@FPR=0.01} & \textbf{@FPR=0.05} & \textbf{@FPR=0.1} & \textbf{@FPR=0.3} & \textbf{AUC-ROC} \\
+\textbf{Client} & \textbf{Samples} & \textbf{Patches} & \textbf{Coreset} & \textbf{Weight} \\
 \midrule
-C1: engine\_wiring & 285 & \% TODO & \% TODO & \% TODO & \% TODO & \% TODO \\
-C2: pipe\_clip & 195 & \% TODO & \% TODO & \% TODO & \% TODO & \% TODO \\
-C3: pipe\_staple & 191 & \% TODO & \% TODO & \% TODO & \% TODO & \% TODO \\
-C4: tank\_screw & 318 & \% TODO & \% TODO & \% TODO & \% TODO & \% TODO \\
-C5: underbody\_pipes & 161 & \% TODO & \% TODO & \% TODO & \% TODO & \% TODO \\
-C6: underbody\_screw & 373 & \% TODO & \% TODO & \% TODO & \% TODO & \% TODO \\
+Client 0 & 305 & 59,780 & 5,978 & 0.200 \\
+Client 1 & 305 & 59,780 & 5,978 & 0.200 \\
+Client 2 & 305 & 59,780 & 5,978 & 0.200 \\
+Client 3 & 304 & 59,584 & 5,958 & 0.200 \\
+Client 4 & 304 & 59,584 & 5,958 & 0.200 \\
 \midrule
-\textbf{Mean} & \textbf{1,523} & \textbf{\% TODO} & \textbf{\% TODO} & \textbf{\% TODO} & \textbf{\% TODO} & \textbf{\% TODO} \\
+\textbf{Total/Avg} & \textbf{1,523} & \textbf{298,508} & \textbf{29,850} & \textbf{1.000} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\vspace{1em}
-\textbf{Observations:}
-\begin{itemize}
-    \item Categories with more data tend to perform better
-    \item Smaller categories (pipe\_clip: 195) may show higher variance
-    \item Will inform fairness mechanisms in Stage 2
-\end{itemize}
+\vspace{0.5em}
+\textbf{Evaluation Metrics (TODO):}
+
+\begin{table}[H]
+\centering
+\tiny
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Category} & \textbf{@FPR=0.01} & \textbf{@FPR=0.05} & \textbf{@FPR=0.1} & \textbf{@FPR=0.3} & \textbf{AUC-ROC} \\
+\midrule
+engine\_wiring & TODO & TODO & TODO & TODO & TODO \\
+pipe\_clip & TODO & TODO & TODO & TODO & TODO \\
+pipe\_staple & TODO & TODO & TODO & TODO & TODO \\
+tank\_screw & TODO & TODO & TODO & TODO & TODO \\
+underbody\_pipes & TODO & TODO & TODO & TODO & TODO \\
+underbody\_screw & TODO & TODO & TODO & TODO & TODO \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key Achievement:} Global memory bank (10,000 patches) trained in \textbf{173 seconds}
 
 \end{frame}
 
 % ============================================================================
-% Slide 8: Implementation Status
+% Slide 11: Implementation Status
 % ============================================================================
 \begin{frame}
 \frametitle{Stage 1 Implementation Status}
@@ -360,29 +523,35 @@ C6: underbody\_screw & 373 & \% TODO & \% TODO & \% TODO & \% TODO & \% TODO \\
 \textbf{Component} & \textbf{Status} & \textbf{Notes} \\
 \midrule
 Data Loader & \textcolor{darkgreen}{\checkmark} Complete & All 6 categories loaded \\
-Data Partitioning & \textcolor{darkgreen}{\checkmark} Complete & Client assignments ready \\
-PatchCore Model & \textcolor{orange}{\textbf{In Progress}} & Feature extraction \& memory bank \\
-Client Training & \textcolor{red}{\textbf{Pending}} & Awaiting model completion \\
-Baseline Evaluation & \textcolor{red}{\textbf{Pending}} & Ready to run once training done \\
-Results Documentation & \textcolor{red}{\textbf{Pending}} & Will update Section 7 \\
+Data Partitioning & \textcolor{darkgreen}{\checkmark} Complete & 5 clients, IID distribution \\
+PatchCore Model & \textcolor{darkgreen}{\checkmark} Complete & WideResNet50-2 backbone \\
+Federated Training & \textcolor{darkgreen}{\checkmark} Complete & 173s, global bank ready \\
+Server Aggregation & \textcolor{darkgreen}{\checkmark} Complete & federated\_coreset strategy \\
+Baseline Evaluation & \textcolor{orange}{\textbf{In Progress}} & AUC metrics pending \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\vspace{2em}
-\textbf{Next Immediate Steps:}
+\vspace{1.5em}
+\textbf{Completed Outputs:}
+\begin{itemize}
+    \item Global memory bank: 10,000 patches (1536-dim)
+    \item Training logs and statistics saved
+    \item Checkpoint for reproducibility
+\end{itemize}
+
+\vspace{1em}
+\textbf{Next Steps:}
 \begin{enumerate}
-    \item Complete PatchCore implementation
-    \item Train independent models for all 6 clients
-    \item Collect per-client baseline metrics
-    \item Generate anomaly visualizations
-    \item Update report with results
+    \item Run evaluation on test set (2,399 images)
+    \item Compute AUC-sPRO and AUC-ROC metrics
+    \item Compare against centralized baseline
 \end{enumerate}
 
 \end{frame}
 
 % ============================================================================
-% Slide 9: Stage 2 Preview - Trust Enhancements
+% Slide 12: Stage 2 Preview - Trust Enhancements
 % ============================================================================
 \begin{frame}
 \frametitle{Stage 2 Preview: Trust-Focused Enhancements}
@@ -431,17 +600,17 @@ Results Documentation & \textcolor{red}{\textbf{Pending}} & Will update Section 
 \end{frame}
 
 % ============================================================================
-% Slide 10: Key Takeaways & Roadmap
+% Slide 13: Key Takeaways & Roadmap
 % ============================================================================
 \begin{frame}
 \frametitle{Key Takeaways \& Project Roadmap}
 
 \textbf{Stage 1 Achievements:}
 \begin{itemize}
-    \item {\large {\textcolor{darkgreen}{✓}}} Complete data infrastructure (all 6 categories, 3,950 images)
-    \item {\large {\textcolor{darkgreen}{✓}}} Federated architecture design (6 clients, one per category)
-    \item {\large {\textcolor{darkgreen}{✓}}} Baseline model implementation in progress
-    \item {\large {\textcolor{darkgreen}{✓}}} Comprehensive evaluation framework ready
+    \item {\large \textcolor{darkgreen}{\checkmark}} Complete data infrastructure (6 categories, 3,950 images)
+    \item {\large \textcolor{darkgreen}{\checkmark}} Federated architecture (5 clients, IID partitioning)
+    \item {\large \textcolor{darkgreen}{\checkmark}} PatchCore model with federated aggregation complete
+    \item {\large \textcolor{darkgreen}{\checkmark}} Global memory bank trained (10,000 patches, 173s)
 \end{itemize}
 
 \vspace{1.5em}
@@ -467,7 +636,7 @@ Results Documentation & \textcolor{red}{\textbf{Pending}} & Will update Section 
 \end{frame}
 
 % ============================================================================
-% Slide 11: Questions
+% Slide 14: Questions
 % ============================================================================
 \begin{frame}
 \frametitle{}

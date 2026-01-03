@@ -117,6 +117,25 @@ class FeatureExtractor(nn.Module):
             dim += 1024
         return dim
 
+    def extract_patches(
+        self,
+        images: torch.Tensor,
+        neighborhood_size: int = 3,
+    ) -> torch.Tensor:
+        """Extract patch features from images with neighborhood averaging.
+
+        Args:
+            images: Input tensor [B, 3, H, W].
+            neighborhood_size: Kernel size for local averaging.
+
+        Returns:
+            Patch features [B*H*W, D].
+        """
+        features = self(images)
+        if neighborhood_size > 1:
+            features = apply_local_neighborhood_averaging(features, neighborhood_size)
+        return reshape_features_to_patches(features)
+
 
 def apply_local_neighborhood_averaging(
     features: torch.Tensor,

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
+from loguru import logger
 
 from src.aggregation import MetricsAggregator, ThresholdMetrics
 from src.image import GroundTruthMap, AnomalyMap, DefectsConfig
@@ -71,8 +72,8 @@ class MetricsWrapper:
         Returns:
             Dictionary containing evaluation results.
         """
-        print(f"\nEvaluating object: {object_name}")
-        print(f"Anomaly maps dir: {anomaly_maps_dir}")
+        logger.info(f"Evaluating object: {object_name}")
+        logger.info(f"Anomaly maps dir: {anomaly_maps_dir}")
 
         # Get resize shape for this object
         resize_shape = self._get_resize_shape(object_name)
@@ -132,7 +133,7 @@ class MetricsWrapper:
             metrics_path = output_path / "metrics.json"
             with open(metrics_path, "w") as f:
                 json.dump(results, f, indent=4, sort_keys=True)
-            print(f"Results saved to {metrics_path}")
+            logger.info(f"Results saved to {metrics_path}")
 
         return results
 
@@ -153,7 +154,7 @@ class MetricsWrapper:
         resize_shape: Optional[Tuple[int, int]] = None,
     ) -> Tuple[List, List]:
         """Read ground truth and anomaly maps."""
-        print("Reading ground truth and corresponding anomaly maps...")
+        logger.debug("Reading ground truth and corresponding anomaly maps...")
 
         gt_maps = []
         anomaly_maps = []
@@ -171,7 +172,7 @@ class MetricsWrapper:
         # Every ground truth must have corresponding anomaly map
         skipped = gt_map_rel_paths.difference(anomaly_rel_paths_no_ext)
         if skipped:
-            print(f"Warning: {len(skipped)} ground truth maps have no anomaly maps")
+            logger.warning(f"{len(skipped)} ground truth maps have no anomaly maps")
 
         # Load maps
         for rel_path, rel_path_no_ext in zip(anomaly_rel_paths, anomaly_rel_paths_no_ext):
@@ -189,7 +190,7 @@ class MetricsWrapper:
             else:
                 gt_maps.append(None)
 
-        print(f"Loaded {len(anomaly_maps)} anomaly maps, {sum(1 for g in gt_maps if g)} with GT")
+        logger.info(f"Loaded {len(anomaly_maps)} anomaly maps, {sum(1 for g in gt_maps if g)} with GT")
 
         return gt_maps, anomaly_maps
 
@@ -282,7 +283,7 @@ class MetricsWrapper:
                 subdir_metrics = metrics.reduce_to_images(subdir_anomaly_maps)
                 results[subdir_name] = self._get_auc_spros(subdir_metrics)
             except Exception as e:
-                print(f"Warning: Could not compute metrics for {subdir_name}: {e}")
+                logger.warning(f"Could not compute metrics for {subdir_name}: {e}")
                 results[subdir_name] = {str(fpr): None for fpr in MAX_FPRS}
 
         return results
@@ -393,7 +394,7 @@ def evaluate_all_objects(
         output_dir = os.path.join(output_base_dir, obj_name)
 
         if not os.path.exists(anomaly_maps_dir):
-            print(f"Warning: Anomaly maps directory not found: {anomaly_maps_dir}")
+            logger.warning(f"Anomaly maps directory not found: {anomaly_maps_dir}")
             continue
 
         try:
@@ -406,7 +407,7 @@ def evaluate_all_objects(
             )
             all_results[obj_name] = results
         except Exception as e:
-            print(f"Error evaluating {obj_name}: {e}")
+            logger.error(f"Error evaluating {obj_name}: {e}")
             all_results[obj_name] = {"error": str(e)}
 
     return all_results

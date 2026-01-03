@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import numpy as np
 import torch
 import torch.nn.functional as F
+from loguru import logger
 from PIL import Image
 from torch.utils.data import DataLoader
 
@@ -17,12 +18,9 @@ from src.data.partitioner import (
     CategoryPartitioner,
     compute_partition_stats,
 )
-from src.models.backbone import (
-    FeatureExtractor,
-    apply_local_neighborhood_averaging,
-    reshape_features_to_patches,
-)
+from src.models.backbone import FeatureExtractor
 from src.models.memory_bank import MemoryBank
+from src.util import get_device
 
 from .client import PatchCoreClient
 from .server import FederatedServer
@@ -84,12 +82,9 @@ class FederatedPatchCore:
         self.num_rounds = num_rounds
 
         # Set device
-        if device == "auto":
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        else:
-            self.device = torch.device(device)
+        self.device = get_device(device)
 
-        print(f"FederatedPatchCore using device: {self.device}")
+        logger.info(f"FederatedPatchCore using device: {self.device}")
 
         # Initialize clients
         self.clients: List[PatchCoreClient] = []
@@ -150,7 +145,7 @@ class FederatedPatchCore:
         Returns:
             Dictionary mapping client_id -> list of sample indices.
         """
-        print(f"\nSetting up {self.num_clients} clients with {partitioning} partitioning...")
+        logger.info(f"Setting up {self.num_clients} clients with {partitioning} partitioning...")
 
         if partitioning == "iid":
             partitioner = IIDPartitioner(num_clients=self.num_clients, seed=seed)
@@ -163,11 +158,11 @@ class FederatedPatchCore:
         self.partition_stats = compute_partition_stats(dataset, self.partition)
 
         # Print partition statistics
-        print("\nPartition statistics:")
+        logger.info("Partition statistics:")
         for client_id, stats in self.partition_stats["clients"].items():
-            print(f"  Client {client_id}: {stats['num_samples']} samples")
+            logger.info(f"  Client {client_id}: {stats['num_samples']} samples")
             for cat, count in stats["by_category"].items():
-                print(f"    - {cat}: {count}")
+                logger.info(f"    - {cat}: {count}")
 
         return self.partition
 
@@ -196,16 +191,16 @@ class FederatedPatchCore:
             Global memory bank as numpy array.
         """
         total_start_time = time.time()
-        print("\n" + "=" * 60)
-        print(f"Starting Federated Training ({self.num_rounds} rounds)")
-        print("=" * 60)
+        logger.info("=" * 60)
+        logger.info(f"Starting Federated Training ({self.num_rounds} rounds)")
+        logger.info("=" * 60)
 
         global_features = None
 
         for round_num in range(1, self.num_rounds + 1):
-            print(f"\n{'='*60}")
-            print(f"Round {round_num}/{self.num_rounds}")
-            print(f"{'='*60}")
+            logger.info("=" * 60)
+            logger.info(f"Round {round_num}/{self.num_rounds}")
+            logger.info("=" * 60)
 
             # Run single round
             round_seed = seed + round_num - 1
@@ -215,13 +210,13 @@ class FederatedPatchCore:
             if checkpoint_dir and round_num % checkpoint_every == 0:
                 round_dir = Path(checkpoint_dir) / f"round_{round_num:03d}"
                 self.save(str(round_dir))
-                print(f"Saved checkpoint to {round_dir}")
+                logger.info(f"Saved checkpoint to {round_dir}")
 
         total_elapsed_time = time.time() - total_start_time
-        print("\n" + "=" * 60)
-        print(f"Federated Training Complete ({total_elapsed_time:.2f}s, {self.num_rounds} rounds)")
-        print(f"Global memory bank size: {len(global_features)}")
-        print("=" * 60)
+        logger.info("=" * 60)
+        logger.info(f"Federated Training Complete ({total_elapsed_time:.2f}s, {self.num_rounds} rounds)")
+        logger.info(f"Global memory bank size: {len(global_features)}")
+        logger.info("=" * 60)
 
         return global_features
 
@@ -244,13 +239,13 @@ class FederatedPatchCore:
         start_time = time.time()
 
         # Phase 1: Local feature extraction and coreset building
-        print("\n--- Phase 1: Local Client Processing ---")
+        logger.info("--- Phase 1: Local Client Processing ---")
         client_coresets = []
         client_stats = []
 
         for client_id, client in enumerate(self.clients):
             if client_id not in dataloaders:
-                print(f"Warning: No dataloader for client {client_id}")
+                logger.info(f"Warning: No dataloader for client {client_id}")
                 continue
 
             dataloader = dataloaders[client_id]
@@ -273,7 +268,7 @@ class FederatedPatchCore:
             client_stats.append(client.get_stats())
 
         # Phase 2: Server aggregation
-        print("\n--- Phase 2: Server Aggregation ---")
+        logger.info("--- Phase 2: Server Aggregation ---")
         self.server.receive_client_coresets(client_coresets, client_stats)
         global_features = self.server.aggregate(seed=seed)
 
@@ -290,7 +285,7 @@ class FederatedPatchCore:
             )
 
         # Phase 3: Broadcast to clients
-        print("\n--- Phase 3: Broadcasting Global Model ---")
+        logger.info("--- Phase 3: Broadcasting Global Model ---")
         self.server.broadcast_to_clients(self.clients)
 
         # Compile training statistics
@@ -305,8 +300,8 @@ class FederatedPatchCore:
             "client_stats": client_stats,
         }
 
-        print(f"\nRound {round_num} complete ({elapsed_time:.2f}s)")
-        print(f"Global memory bank size: {len(global_features)}")
+        logger.info(f"Round {round_num} complete ({elapsed_time:.2f}s)")
+        logger.info(f"Global memory bank size: {len(global_features)}")
 
         return global_features
 
@@ -339,19 +334,13 @@ class FederatedPatchCore:
             self.image_size = (images.shape[2], images.shape[3])
 
         with torch.no_grad():
-            # Extract features
-            features = self.feature_extractor(images)
+            # Extract features and reshape to patches
+            patches = self.feature_extractor.extract_patches(images, self.neighborhood_size)
 
-            # Apply local neighborhood averaging
-            if self.neighborhood_size > 1:
-                features = apply_local_neighborhood_averaging(
-                    features, self.neighborhood_size
-                )
-
-            feature_h, feature_w = features.shape[2], features.shape[3]
-
-            # Reshape to patches
-            patches = reshape_features_to_patches(features)
+            # Calculate feature map dimensions
+            # For WideResNet50, layer3 output is H/8, W/8
+            feature_h = images.shape[2] // 8
+            feature_w = images.shape[3] // 8
 
         # Get anomaly scores from global memory bank
         anomaly_scores = self.global_memory_bank.get_anomaly_scores(patches.cpu().numpy())
@@ -442,14 +431,14 @@ class FederatedPatchCore:
         config_path = output_dir / "federated_config.json"
         with open(config_path, "w") as f:
             json.dump(config, f, indent=2)
-        print(f"Saved federated config to {config_path}")
+        logger.info(f"Saved federated config to {config_path}")
 
         # Save training statistics
         if self.training_stats:
             stats_path = output_dir / "training_log.json"
             with open(stats_path, "w") as f:
                 json.dump(_convert_to_serializable(self.training_stats), f, indent=2)
-            print(f"Saved training log to {stats_path}")
+            logger.info(f"Saved training log to {stats_path}")
 
     def load(self, input_dir: str) -> None:
         """Load a previously saved federated model.
@@ -489,7 +478,7 @@ class FederatedPatchCore:
             pretrained=True,
         ).to(self.device)
 
-        print(f"Loaded federated model from {input_dir}")
+        logger.info(f"Loaded federated model from {input_dir}")
 
     def get_stats(self) -> Dict:
         """Get comprehensive statistics about the federated system.

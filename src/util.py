@@ -1,21 +1,48 @@
 """Collection of utility functions."""
 import os
-import platform
 from bisect import bisect
-from typing import Iterable, Sequence, List, Callable
+from typing import Iterable, Sequence, List, Callable, Union
 
 import numpy as np
+from loguru import logger
+import torch
 
 
-def is_dict_order_stable():
-    """Returns true, if and only if dicts always iterate in the same order."""
-    if platform.python_implementation() == 'CPython':
-        required_minor = 6
-    else:
-        required_minor = 7
-    major, minor, _ = platform.python_version_tuple()
-    assert major == '3' and all(s.isdigit() for s in minor)
-    return int(minor) >= required_minor
+def get_device(device: str = "auto") -> torch.device:
+    """Resolve device string to torch.device.
+
+    Args:
+        device: Device specification. "auto" selects CUDA if available,
+                otherwise CPU. Can also be "cuda", "cpu", or a specific
+                device like "cuda:0".
+
+    Returns:
+        torch.device object for the requested device.
+    """
+    if device == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    return torch.device(device)
+
+
+def extract_images_from_batch(batch: Union[dict, list, tuple, torch.Tensor]) -> torch.Tensor:
+    """Extract images tensor from various batch formats.
+
+    Handles different batch formats commonly used in PyTorch DataLoaders:
+    - dict with "image" key
+    - tuple/list where first element is images
+    - plain tensor
+
+    Args:
+        batch: A batch from a DataLoader in various formats.
+
+    Returns:
+        torch.Tensor of images with shape [B, C, H, W].
+    """
+    if isinstance(batch, dict):
+        return batch["image"]
+    elif isinstance(batch, (list, tuple)):
+        return batch[0]
+    return batch
 
 
 def listdir(path, sort=True, include_hidden=False):
@@ -193,8 +220,8 @@ def trapz(x, y, x_max=None):
     y = np.array(y)
     finite_mask = np.logical_and(np.isfinite(x), np.isfinite(y))
     if not finite_mask.all():
-        print("""WARNING: Not all x and y values passed to trapezoid(...)
-                 are finite. Will continue with only the finite values.""")
+        logger.warning("Not all x and y values passed to trapezoid(...) "
+                 "are finite. Will continue with only the finite values.")
     x = x[finite_mask]
     y = y[finite_mask]
 

@@ -10,6 +10,7 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import Sequence, Optional, MutableMapping
 
 import numpy as np
+from loguru import logger
 from tqdm import tqdm
 
 from src.image import AnomalyMap, GroundTruthMap, GroundTruthChannel
@@ -228,13 +229,13 @@ def get_spros_of_defects_of_images(
         kwargs_list.append(kwargs)
 
     if parallel_workers is None:
-        print(f'Computing mean sPROs for {len(anomaly_thresholds)} anomaly'
+        logger.info(f'Computing mean sPROs for {len(anomaly_thresholds)} anomaly'
               f' thresholds...')
         spros_of_defects_of_images = [
             _get_spros_per_defect_for_thresholds_kwargs(kwargs)
             for kwargs in tqdm(kwargs_list)]
     else:
-        print(f'Computing mean sPROs for {len(anomaly_thresholds)} anomaly'
+        logger.info(f'Computing mean sPROs for {len(anomaly_thresholds)} anomaly'
               f' thresholds in parallel on {parallel_workers} CPUs...')
         pool = ProcessPoolExecutor(max_workers=parallel_workers)
         spros_of_defects_of_images = pool.map(
@@ -298,13 +299,13 @@ def get_fp_tn_areas_per_image(
 
     # For each anomaly threshold, compute the FP areas per image.
     if parallel_workers is None:
-        print(f'Computing FPRs for {len(anomaly_thresholds)} anomaly'
+        logger.info(f'Computing FPRs for {len(anomaly_thresholds)} anomaly'
               f' thresholds...')
         fp_areas_per_image = [
             _get_fp_areas_for_thresholds_kwargs(kwargs)
             for kwargs in tqdm(kwargs_list)]
     else:
-        print(f'Computing FPRs for {len(anomaly_thresholds)} anomaly'
+        logger.info(f'Computing FPRs for {len(anomaly_thresholds)} anomaly'
               f' thresholds in parallel on {parallel_workers} CPUs...')
         pool = ProcessPoolExecutor(max_workers=parallel_workers)
         fp_areas_per_image = pool.map(
