@@ -39,36 +39,34 @@ where $f(x, p)$ is the feature at patch position $p$ in image $x$, and $M$ is th
 | Coreset percentage | 10% |
 | Neighborhood size | 3 |
 
-## 4.2 Federated Learning Setup - Stage 1
+## 4.2 Federated Learning Adaptation
 
-### Stage 1: Local Training without Aggregation
+### Federated Memory Bank Aggregation
 
-In Stage 1, each client trains independently on their assigned product category:
+Unlike traditional FL that aggregates gradient updates, our approach aggregates **memory banks** directly:
 
 ```
-Algorithm: Stage 1 - Independent Local Training
-1. For each client k (6 clients, one per category):
-   a. Load local training data (good/normal images only)
-   b. Extract features using pre-trained WideResNet-50-2
-   c. Build local memory bank via greedy coreset selection
-   d. Evaluate on local test set
-2. Collect baseline performance metrics per client
-3. Prepare for Stage 2 aggregation (TBD)
+Algorithm: Federated PatchCore
+1. Server initializes empty global memory bank
+2. For each client k in parallel:
+   a. Extract features from local training data
+   b. Build local coreset (10% of local patches)
+   c. Send local coreset to server
+3. Server aggregates:
+   a. Concatenate all local coresets
+   b. Apply global coreset selection
+   c. Build global memory bank
+4. Broadcast global memory bank to clients
 ```
 
-Each client operates independently, establishing category-specific baseline performance. This approach:
-- Provides baseline accuracy for each product type
-- Enables evaluation of category-specific anomaly patterns
-- Identifies performance variations across different object categories
-- Establishes foundation for federated aggregation in Stage 2
+### Aggregation Strategy
 
-### Stage 2 Preview: Federated Memory Bank Aggregation
+We use **weighted federated coreset** aggregation:
+1. Weight client contributions by local dataset size (fairness)
+2. Oversample from each client (2× target allocation)
+3. Apply global greedy coreset selection for diversity
 
-Future work will introduce memory bank aggregation:
-- Weight client contributions by local dataset size (fairness)
-- Aggregate local coresets into global memory bank
-- Compare aggregated performance against independent baselines
-- Introduce privacy guarantees (DP-SGD) with utility analysis
+This ensures balanced representation across clients while maintaining efficient memory bank size.
 
 ## 4.3 Evaluation Metrics
 

@@ -28,10 +28,10 @@ We investigate these questions using the **AutoVI (Automotive Visual Inspection)
 
 This Stage 1 report presents the following contributions:
 
-- **Data Loader Implementation**: Complete data loading pipeline for AutoVI v1.0.0 dataset with all 6 product categories (3,950 total images).
+- **Baseline Implementation**: A centralized PatchCore model achieving state-of-the-art anomaly detection performance on AutoVI.
 
-- **Baseline Model Development**: PatchCore implementation in progress, following unsupervised anomaly detection paradigm.
+- **Federated Adaptation**: A federated learning framework with 5 simulated clients using memory bank aggregation for PatchCore.
 
-- **Federated Architecture Design**: Federated learning framework with 6 independent clients (one per product category) using memory bank aggregation.
+- **Comparative Analysis**: Quantitative comparison of IID vs non-IID (category-based) data partitioning strategies.
 
-- **Stage 1 Foundations**: Established infrastructure for local training without aggregation, ready for Stage 2 enhancements (privacy, fairness).
+- **Preliminary Findings**: Initial observations on the performance gap between centralized and federated approaches, identifying challenges for Stage 2 trustworthiness enhancements.

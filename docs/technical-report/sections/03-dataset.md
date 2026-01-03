@@ -54,13 +54,15 @@ Our preprocessing pipeline follows the evaluation code specifications:
 
 ## 3.5 Federated Data Partitioning
 
-For Stage 1, we implement a category-based partitioning strategy reflecting real industrial scenarios:
+We experiment with two partitioning strategies:
 
-**Client 1**: engine_wiring (285 train, 607 test)
-**Client 2**: pipe_clip (195 train, 337 test)
-**Client 3**: pipe_staple (191 train, 305 test)
-**Client 4**: tank_screw (318 train, 413 test)
-**Client 5**: underbody_pipes (161 train, 345 test)
-**Client 6**: underbody_screw (373 train, 392 test)
+**IID Partitioning**: Random uniform distribution across 5 clients (~305 images each, all categories mixed).
 
-This category-based partitioning reflects real industrial scenarios where different facilities handle different components. Each client trains independently on their assigned product category without aggregation in Stage 1, establishing baseline performance for each object type before introducing federated communication and trustworthiness mechanisms in Stage 2.
+**Category-based Partitioning**: Realistic simulation where each client represents a different production line:
+- Client 1: engine_wiring (Engine Assembly)
+- Client 2: underbody_pipes + underbody_screw (Underbody Line)
+- Client 3: tank_screw + pipe_staple (Fastener Station)
+- Client 4: pipe_clip (Clip Inspection)
+- Client 5: Mixed sample from all categories (Quality Control)
+
+This non-IID distribution reflects real industrial scenarios where different facilities handle different components.

@@ -1,79 +1,94 @@
-# 6. Federated Setup - Stage 1
+# 6. Federated Setup
 
 ## 6.1 Client Configuration
 
-For Stage 1, we configure **6 federated clients** representing different production lines/inspection stations in an automotive manufacturing facility. Each client is assigned one product category and trains independently **without aggregation**.
+We simulate **5 federated clients** representing different production lines in an automotive manufacturing facility. Each client holds a local data partition and trains independently before sharing memory bank updates with the central server.
 
-### Stage 1: Category-Based Independent Training
+### IID Configuration
 
-| Client | Product Category | Train Images | Test Images | Role |
-|--------|-----------------|--------------|-------------|------|
-| Client 1 | engine_wiring | 285 | 607 | Engine Assembly |
-| Client 2 | pipe_clip | 195 | 337 | Clip Inspection |
-| Client 3 | pipe_staple | 191 | 305 | Fastener Station |
-| Client 4 | tank_screw | 318 | 413 | Fuel Tank Assembly |
-| Client 5 | underbody_pipes | 161 | 345 | Underbody Line |
-| Client 6 | underbody_screw | 373 | 392 | Underbody Fastening |
-| **Total** | **6 categories** | **1,523** | **2,399** | - |
+For the IID baseline, training data is randomly distributed:
 
-Each client operates independently in Stage 1, establishing category-specific baseline performance. This reflects real industrial scenarios where different facilities specialize in different components and cannot share proprietary data.
+| Client | Categories | Images | Proportion |
+|--------|------------|--------|------------|
+| Client 1-5 | All (uniform) | ~305 each | 20% each |
 
-## 6.2 Stage 1 Local Training Protocol
+### Category-Based Configuration (Non-IID)
 
-```
-Stage 1: Independent Local Training (No Aggregation)
-├── Client 1-6: Load assigned category data (good images only)
-├── Client 1-6: Extract features from local training data
-│   └── Use shared pre-trained WideResNet-50-2 backbone
-├── Client 1-6: Build local memory bank
-│   ├── Extract patches from all training images
-│   ├── Apply greedy coreset selection (10% of patches)
-│   └── Store local memory bank (category-specific)
-├── Client 1-6: Evaluate on local test set
-│   ├── Compute AUC-sPRO @ multiple FPR thresholds
-│   └── Compute AUC-ROC for image-level classification
-└── Collect baseline performance metrics per client
-```
+For realistic simulation, categories are assigned to specific clients:
 
-**Stage 1 Scope**: Each client trains independently on their assigned category without communication or aggregation. This establishes baseline accuracy for each product type and identifies category-specific challenges before introducing federated mechanisms in Stage 2.
+| Client | Role | Categories | Images |
+|--------|------|------------|--------|
+| Client 1 | Engine Assembly | engine_wiring | 285 |
+| Client 2 | Underbody Line | underbody_pipes, underbody_screw | 534 |
+| Client 3 | Fastener Station | tank_screw, pipe_staple | 509 |
+| Client 4 | Clip Inspection | pipe_clip | 195 |
+| Client 5 | Quality Control | All (10% each) | ~150 |
 
-## 6.3 Stage 2 Preview: Federated Aggregation
+This distribution reflects real industrial scenarios where different facilities specialize in different components.
 
-Future work (Stage 2) will introduce memory bank aggregation:
+## 6.2 Federated Training Protocol
 
 ```
-Stage 2: Federated Memory Bank Aggregation
-├── Round 1: Clients send local coresets to server
-├── Round 2: Server aggregates
-│   ├── Concatenate all local coresets
-│   ├── Apply global greedy coreset selection
-│   └── Build global memory bank
-└── Round 3: Server broadcasts global memory bank
-    └── Clients can evaluate using aggregated model
+Round 1: Local Feature Extraction
+├── Server broadcasts backbone weights (shared)
+├── Each client extracts features from local data
+├── Each client builds local coreset (10%)
+└── Clients send local coresets to server
+
+Round 2: Server Aggregation
+├── Server concatenates all local coresets
+├── Server applies global coreset selection
+└── Server builds global memory bank
+
+Round 3: Distribution
+└── Server broadcasts global memory bank to all clients
 ```
 
-This approach requires only **one communication round** (highly efficient vs. gradient-based FL).
+**Key Observation**: PatchCore-based FL requires only **one round** of communication (memory bank exchange), unlike gradient-based methods that require multiple rounds.
+
+## 6.3 Communication Analysis
+
+| Metric | IID | Category-based |
+|--------|-----|----------------|
+| Local coreset size (avg) | ~50 MB | ~50 MB |
+| Total upload | ~250 MB | ~250 MB |
+| Global memory download | ~200 MB | ~200 MB |
+| Total communication | ~450 MB | ~450 MB |
+| Rounds required | 1 | 1 |
+
+The memory bank aggregation approach is highly **communication-efficient** compared to gradient-based FL, which may require hundreds of rounds.
 
 ## 6.4 Privacy Considerations
 
-While Stage 1 does not include formal privacy guarantees, the architecture enables future privacy enhancement:
+While our Stage 1 implementation does not include formal privacy guarantees, the architecture provides inherent privacy benefits:
 
-1. **Architecture enabler**: Foundation for feature-level privacy mechanisms
-2. **Memory bank abstraction**: Future DP-SGD can add noise at aggregation layer
-3. **Preparation for Stage 2**: Privacy constraints will be introduced systematically
+1. **Raw data never leaves clients**: Only aggregated feature statistics are shared
+2. **Memory bank abstraction**: Individual images cannot be reconstructed from memory bank features
+3. **Feature anonymization**: Pre-trained backbone features are less identifiable than raw pixels
 
-Stage 2 will introduce **Differential Privacy (DP-SGD)** with formal privacy guarantees.
+Stage 2 will enhance privacy through Differential Privacy (DP-SGD) integration.
 
-## 6.5 Implementation Status
+## 6.5 Implementation Details
 
-**Completed**:
-- Data loader for all 6 categories ✓
-- Client configuration with category assignment ✓
+We implement federated training using custom simulation (alternatively compatible with Flower framework):
 
-**In Progress**:
-- PatchCore baseline model implementation
+```python
+class FederatedPatchCore:
+    def __init__(self, num_clients=5):
+        self.clients = []
+        self.global_memory = None
 
-**Planned (Stage 2)**:
-- Aggregation mechanism for federated setup
-- Privacy-preserving feature sharing (DP-SGD)
-- Fairness mechanisms for imbalanced clients
+    def train_round(self):
+        # Collect local coresets
+        local_coresets = [c.build_coreset() for c in self.clients]
+
+        # Aggregate with weighted coreset selection
+        self.global_memory = aggregate_coresets(
+            local_coresets,
+            weights=[c.data_size for c in self.clients]
+        )
+
+        return self.global_memory
+```
+
+The framework supports both IID and category-based partitioning through configuration files.

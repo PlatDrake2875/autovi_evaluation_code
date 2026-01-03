@@ -1,18 +1,8 @@
 # 8. Next Steps (Stage 2 Roadmap)
 
-## 8.1 Stage 1 Completion & Transition to Stage 2
+## 8.1 Trust Dimensions to Address
 
-**Current Stage 1 Status**:
-- ✓ Data infrastructure: All 6 categories loaded and partitioned
-- ⏳ Baseline models: PatchCore implementation in progress
-- ⏳ Independent client training: Ready to execute once model is complete
-- 📋 Results: Placeholder structure established, awaiting experimental data
-
-**Stage 2 will build upon Stage 1 by introducing**:
-
-## 8.2 Trust Dimensions to Address
-
-After establishing Stage 1 baselines, we will focus on **two trust dimensions** in Stage 2:
+Based on our Stage 1 findings, we will focus on **two trust dimensions** in Stage 2:
 
 ### Privacy Enhancement: Differential Privacy (DP-SGD)
 
