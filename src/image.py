@@ -6,6 +6,7 @@ from functools import lru_cache
 from typing import Sequence, Optional, Mapping, Iterable, Tuple, Union, Any
 
 import numpy as np
+from loguru import logger
 from PIL import Image
 
 
@@ -162,7 +163,7 @@ class GroundTruthMap:
             threshold = channel.defect_config.saturation_threshold
             defect_area = channel.get_defect_area()
             if threshold > defect_area:
-                print(f'WARNING: Channel {i_channel + 1} (1=first) of ground'
+                logger.warning(f'Channel {i_channel + 1} (1=first) of ground'
                       f' truth image {get_file_path_repr(file_path)} has a'
                       f' defect area of {defect_area}, but a saturation'
                       f' threshold of {threshold}. Corresponding defect'

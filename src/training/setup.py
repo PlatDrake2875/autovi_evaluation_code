@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional
 import numpy as np
 import torch
 import yaml
+from loguru import logger
 
 
 def set_random_seeds(seed: int) -> None:
@@ -103,8 +104,8 @@ def print_training_header(
         params: Dictionary of parameters to display.
         width: Width of the separator lines.
     """
-    print(f"\n{'=' * width}")
-    print(title)
-    print(f"{'=' * width}")
+    logger.info(f"\n{'=' * width}")
+    logger.info(title)
+    logger.info(f"{'=' * width}")
     for key, value in params.items():
-        print(f"{key}: {value}")
+        logger.info(f"{key}: {value}")

@@ -1,18 +1,16 @@
 """PatchCore client for federated learning."""
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import numpy as np
 import torch
+from loguru import logger
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from src.models.backbone import (
-    FeatureExtractor,
-    apply_local_neighborhood_averaging,
-    reshape_features_to_patches,
-)
+from src.models.backbone import FeatureExtractor
 from src.models.memory_bank import greedy_coreset_selection
+from src.util import get_device, extract_images_from_batch
 
 
 class PatchCoreClient:
@@ -55,10 +53,7 @@ class PatchCoreClient:
         self.coreset_ratio = coreset_ratio
 
         # Set device
-        if device == "auto":
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        else:
-            self.device = torch.device(device)
+        self.device = get_device(device)
 
         # Initialize feature extractor
         self.feature_extractor = FeatureExtractor(
@@ -93,7 +88,7 @@ class PatchCoreClient:
         Returns:
             All extracted patch features as numpy array [N, D].
         """
-        print(f"Client {self.client_id}: Extracting features...")
+        logger.info(f"Client {self.client_id}: Extracting features...")
 
         all_features = []
         self.feature_extractor.eval()
@@ -105,28 +100,12 @@ class PatchCoreClient:
                 desc=f"Client {self.client_id} feature extraction",
                 leave=False,
             ):
-                # Handle different batch formats
-                if isinstance(batch, dict):
-                    images = batch["image"]
-                elif isinstance(batch, (list, tuple)):
-                    images = batch[0]
-                else:
-                    images = batch
-
+                images = extract_images_from_batch(batch)
                 images = images.to(self.device)
                 num_samples += images.shape[0]
 
-                # Extract features
-                features = self.feature_extractor(images)
-
-                # Apply local neighborhood averaging
-                if self.neighborhood_size > 1:
-                    features = apply_local_neighborhood_averaging(
-                        features, self.neighborhood_size
-                    )
-
-                # Reshape to patch vectors
-                patches = reshape_features_to_patches(features)
+                # Extract patch features
+                patches = self.feature_extractor.extract_patches(images, self.neighborhood_size)
                 all_features.append(patches.cpu().numpy())
 
         # Concatenate all features
@@ -136,7 +115,7 @@ class PatchCoreClient:
         self.stats["num_samples"] = num_samples
         self.stats["num_patches"] = all_features.shape[0]
 
-        print(
+        logger.info(
             f"Client {self.client_id}: Extracted {all_features.shape[0]} patches "
             f"from {num_samples} images"
         )
@@ -164,7 +143,7 @@ class PatchCoreClient:
         if target_size is None:
             target_size = max(1, int(n_samples * self.coreset_ratio))
 
-        print(
+        logger.info(
             f"Client {self.client_id}: Building local coreset "
             f"({target_size} from {n_samples} patches)..."
         )
@@ -182,7 +161,7 @@ class PatchCoreClient:
         # Update statistics
         self.stats["coreset_size"] = len(self.local_coreset)
 
-        print(f"Client {self.client_id}: Local coreset size: {len(self.local_coreset)}")
+        logger.info(f"Client {self.client_id}: Local coreset size: {len(self.local_coreset)}")
 
         return self.local_coreset
 
@@ -234,7 +213,7 @@ class PatchCoreClient:
         # In a full implementation, this would update a separate
         # inference memory bank
         self._global_memory = global_memory
-        print(
+        logger.info(
             f"Client {self.client_id}: Received global memory bank "
             f"with {len(global_memory)} patches"
         )

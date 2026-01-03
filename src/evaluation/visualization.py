@@ -5,6 +5,7 @@ for centralized vs federated model evaluation.
 """
 
 import json
+from loguru import logger
 import os
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
@@ -87,7 +88,7 @@ def plot_fpr_spro_curves(
 
     if output_path:
         fig.savefig(output_path, dpi=150, bbox_inches="tight")
-        print(f"Saved plot to {output_path}")
+        logger.info(f"Saved plot to {output_path}")
 
     return fig
 
@@ -163,7 +164,7 @@ def plot_comparison_bar_chart(
 
     if output_path:
         fig.savefig(output_path, dpi=150, bbox_inches="tight")
-        print(f"Saved plot to {output_path}")
+        logger.info(f"Saved plot to {output_path}")
 
     return fig
 
@@ -231,7 +232,7 @@ def plot_performance_heatmap(
 
     if output_path:
         fig.savefig(output_path, dpi=150, bbox_inches="tight")
-        print(f"Saved plot to {output_path}")
+        logger.info(f"Saved plot to {output_path}")
 
     return fig
 
@@ -289,7 +290,7 @@ def plot_box_comparison(
 
     if output_path:
         fig.savefig(output_path, dpi=150, bbox_inches="tight")
-        print(f"Saved plot to {output_path}")
+        logger.info(f"Saved plot to {output_path}")
 
     return fig
 
@@ -434,7 +435,7 @@ def create_comparison_table(
 
     if output_path:
         df.to_csv(output_path, index=False)
-        print(f"Saved comparison table to {output_path}")
+        logger.info(f"Saved comparison table to {output_path}")
 
     return df
 
@@ -459,34 +460,34 @@ def create_comparison_report(
 
     artifacts = {}
 
-    print("\nGenerating comparison report...")
+    logger.info("Generating comparison report...")
 
     # 1. Comparison table
-    print("  Creating comparison table...")
+    logger.debug("Creating comparison table...")
     table_path = output_dir / "comparison_table.csv"
     df = create_comparison_table(results_by_method, fpr_limit, str(table_path))
     artifacts["comparison_table"] = str(table_path)
 
     # 2. Bar chart
-    print("  Creating bar chart...")
+    logger.debug("Creating bar chart...")
     bar_path = output_dir / "bar_comparison.png"
     plot_comparison_bar_chart(results_by_method, fpr_limit, str(bar_path))
     artifacts["bar_chart"] = str(bar_path)
 
     # 3. Heatmap
-    print("  Creating heatmap...")
+    logger.debug("Creating heatmap...")
     heatmap_path = output_dir / "performance_heatmap.png"
     plot_performance_heatmap(results_by_method, fpr_limit, str(heatmap_path))
     artifacts["heatmap"] = str(heatmap_path)
 
     # 4. Box plot
-    print("  Creating box plot...")
+    logger.debug("Creating box plot...")
     box_path = output_dir / "box_comparison.png"
     plot_box_comparison(results_by_method, fpr_limit, str(box_path))
     artifacts["box_plot"] = str(box_path)
 
     # 5. Per-object FPR-sPRO curves
-    print("  Creating per-object curves...")
+    logger.debug("Creating per-object curves...")
     curves_dir = output_dir / "fpr_spro_curves"
     curves_dir.mkdir(exist_ok=True)
 
@@ -501,7 +502,7 @@ def create_comparison_report(
     artifacts["fpr_spro_curves_dir"] = str(curves_dir)
 
     # 6. Statistical analysis
-    print("  Computing statistical analysis...")
+    logger.debug("Computing statistical analysis...")
     stats_analysis = compute_statistical_analysis(results_by_method, fpr_limit)
     stats_path = output_dir / "statistical_analysis.json"
     with open(stats_path, "w") as f:
@@ -509,7 +510,7 @@ def create_comparison_report(
     artifacts["statistical_analysis"] = str(stats_path)
 
     # 7. Summary report (Markdown)
-    print("  Generating summary report...")
+    logger.debug("Generating summary report...")
     summary_path = output_dir / "summary_report.md"
     _generate_summary_markdown(
         results_by_method,
@@ -520,7 +521,7 @@ def create_comparison_report(
     )
     artifacts["summary_report"] = str(summary_path)
 
-    print(f"\nReport generated in {output_dir}")
+    logger.info(f"Report generated in {output_dir}")
 
     return artifacts
 
@@ -603,4 +604,4 @@ def _generate_summary_markdown(
     with open(output_path, "w") as f:
         f.write("\n".join(lines))
 
-    print(f"Saved summary report to {output_path}")
+    logger.info(f"Saved summary report to {output_path}")

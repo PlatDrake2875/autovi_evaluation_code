@@ -5,13 +5,10 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import numpy as np
+from loguru import logger
 
 from src.models.memory_bank import MemoryBank
-from .strategies.federated_memory import (
-    federated_aggregate,
-    simple_concatenate,
-    diversity_preserving_aggregate,
-)
+from .strategies.federated_memory import STRATEGY_REGISTRY
 
 
 class FederatedServer:
@@ -74,9 +71,9 @@ class FederatedServer:
         if client_stats:
             self.client_stats = client_stats
 
-        print(f"Server: Received coresets from {len(client_coresets)} clients")
+        logger.info(f"Server: Received coresets from {len(client_coresets)} clients")
         for i, coreset in enumerate(client_coresets):
-            print(f"  Client {i}: {len(coreset)} patches")
+            logger.debug(f"  Client {i}: {len(coreset)} patches")
 
     def aggregate(self, seed: int = 42) -> np.ndarray:
         """Aggregate client coresets into a global memory bank.
@@ -90,30 +87,22 @@ class FederatedServer:
         if not hasattr(self, "_pending_coresets") or not self._pending_coresets:
             raise RuntimeError("No client coresets received. Call receive_client_coresets first.")
 
-        print(f"\nServer: Aggregating using strategy: {self.aggregation_strategy}")
+        logger.info(f"Server: Aggregating using strategy: {self.aggregation_strategy}")
 
-        # Select aggregation strategy
-        if self.aggregation_strategy == "federated_coreset":
-            self.global_features, self.aggregation_stats = federated_aggregate(
-                client_coresets=self._pending_coresets,
-                global_bank_size=self.global_bank_size,
-                weighted_by_samples=self.weighted_by_samples,
-                seed=seed,
+        # Select aggregation strategy from registry
+        strategy_fn = STRATEGY_REGISTRY.get(self.aggregation_strategy)
+        if strategy_fn is None:
+            raise ValueError(
+                f"Unknown aggregation strategy: {self.aggregation_strategy}. "
+                f"Available: {list(STRATEGY_REGISTRY.keys())}"
             )
-        elif self.aggregation_strategy == "simple_concatenate":
-            self.global_features, self.aggregation_stats = simple_concatenate(
-                client_coresets=self._pending_coresets,
-                global_bank_size=self.global_bank_size,
-                seed=seed,
-            )
-        elif self.aggregation_strategy == "diversity_preserving":
-            self.global_features, self.aggregation_stats = diversity_preserving_aggregate(
-                client_coresets=self._pending_coresets,
-                global_bank_size=self.global_bank_size,
-                seed=seed,
-            )
-        else:
-            raise ValueError(f"Unknown aggregation strategy: {self.aggregation_strategy}")
+
+        # Execute the strategy
+        self.global_features, self.aggregation_stats = strategy_fn(
+            client_coresets=self._pending_coresets,
+            global_bank_size=self.global_bank_size,
+            seed=seed,
+        )
 
         # Build memory bank for inference
         feature_dim = self.global_features.shape[1]
@@ -122,11 +111,10 @@ class FederatedServer:
             use_faiss=self.use_faiss,
             use_gpu=self.use_gpu,
         )
-        # Directly set features and build index
-        self.global_memory_bank.features = self.global_features
-        self.global_memory_bank._build_index()
+        # Set features using public API
+        self.global_memory_bank.set_features(self.global_features)
 
-        print(f"\nServer: Global memory bank built with {len(self.global_features)} patches")
+        logger.info(f"Server: Global memory bank built with {len(self.global_features)} patches")
 
         return self.global_features
 
@@ -155,7 +143,7 @@ class FederatedServer:
         if self.global_features is None:
             raise RuntimeError("No global memory bank. Call aggregate first.")
 
-        print(f"\nServer: Broadcasting global memory bank to {len(clients)} clients")
+        logger.info(f"Server: Broadcasting global memory bank to {len(clients)} clients")
         for client in clients:
             client.set_global_memory_bank(self.global_features)
 
@@ -196,7 +184,7 @@ class FederatedServer:
                 features=self.global_features,
                 feature_dim=self.global_features.shape[1],
             )
-            print(f"Saved global memory bank to {features_path}")
+            logger.info(f"Saved global memory bank to {features_path}")
 
         # Save statistics
         stats = self.get_stats()
@@ -204,14 +192,14 @@ class FederatedServer:
         with open(stats_path, "w") as f:
             # Convert numpy types to Python types for JSON serialization
             json.dump(_convert_to_serializable(stats), f, indent=2)
-        print(f"Saved server stats to {stats_path}")
+        logger.info(f"Saved server stats to {stats_path}")
 
         # Save client statistics
         if self.client_stats:
             client_stats_path = output_dir / "client_stats.json"
             with open(client_stats_path, "w") as f:
                 json.dump(_convert_to_serializable(self.client_stats), f, indent=2)
-            print(f"Saved client stats to {client_stats_path}")
+            logger.info(f"Saved client stats to {client_stats_path}")
 
     def load(self, input_dir: str) -> None:
         """Load a previously saved global memory bank.
@@ -234,11 +222,10 @@ class FederatedServer:
                 use_faiss=self.use_faiss,
                 use_gpu=self.use_gpu,
             )
-            self.global_memory_bank.features = self.global_features
-            self.global_memory_bank._build_index()
+            self.global_memory_bank.set_features(self.global_features)
 
-            print(f"Loaded global memory bank from {features_path}")
-            print(f"  Shape: {self.global_features.shape}")
+            logger.info(f"Loaded global memory bank from {features_path}")
+            logger.debug(f"  Shape: {self.global_features.shape}")
 
         # Load statistics
         stats_path = input_dir / "server_stats.json"
