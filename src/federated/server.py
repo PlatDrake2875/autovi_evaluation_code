@@ -7,8 +7,11 @@ from typing import Dict, List, Optional
 import numpy as np
 from loguru import logger
 
+from dataclasses import asdict
+
 from src.models.memory_bank import MemoryBank
 from src.privacy import PrivacyAccountant
+from src.robustness import RobustnessConfig, CoordinateMedianAggregator, ZScoreDetector
 from .strategies.federated_memory import STRATEGY_REGISTRY
 
 
@@ -34,6 +37,7 @@ class FederatedServer:
         use_gpu: bool = False,
         track_privacy: bool = False,
         target_epsilon: Optional[float] = None,
+        robustness_config: Optional[RobustnessConfig] = None,
     ):
         """Initialize the federated server.
 
@@ -46,6 +50,7 @@ class FederatedServer:
             use_gpu: Whether to use GPU for FAISS.
             track_privacy: If True, track privacy budget using PrivacyAccountant.
             target_epsilon: Target privacy budget (epsilon). Only used if track_privacy=True.
+            robustness_config: Configuration for Byzantine-resilient aggregation.
         """
         self.global_bank_size = global_bank_size
         self.aggregation_strategy = aggregation_strategy
@@ -67,6 +72,29 @@ class FederatedServer:
         if track_privacy:
             self.privacy_accountant = PrivacyAccountant(target_epsilon)
             logger.info(f"Server: Privacy tracking enabled with target_epsilon={target_epsilon}")
+
+        # Robustness components
+        self.robustness_config = robustness_config
+        self.robust_aggregator: Optional[CoordinateMedianAggregator] = None
+        self.client_scorer: Optional[ZScoreDetector] = None
+        self.client_trust_scores: List[Dict] = []
+
+        if robustness_config and robustness_config.enabled:
+            # Initialize robust aggregator
+            if robustness_config.aggregation_method == "coordinate_median":
+                self.robust_aggregator = CoordinateMedianAggregator(
+                    num_samples_per_client=global_bank_size // 10  # Sample subset
+                )
+            # Initialize client scorer if enabled
+            if robustness_config.client_scoring_method == "zscore":
+                self.client_scorer = ZScoreDetector(
+                    threshold=robustness_config.zscore_threshold
+                )
+            logger.info(
+                f"Server: Robustness enabled with "
+                f"aggregation={robustness_config.aggregation_method}, "
+                f"scoring={robustness_config.client_scoring_method}"
+            )
 
     def receive_client_coresets(
         self,
@@ -103,6 +131,42 @@ class FederatedServer:
                         description=f"Client {client_id} coreset sanitization",
                     )
 
+    def _robust_aggregate(
+        self, client_coresets: List[np.ndarray], seed: int = 42
+    ) -> tuple:
+        """Perform robust aggregation with optional anomaly detection.
+
+        Args:
+            client_coresets: List of client coreset arrays.
+            seed: Random seed for reproducibility.
+
+        Returns:
+            Tuple of (aggregated_features, stats_dict).
+        """
+        stats = {"robustness_enabled": True}
+
+        # Score clients if enabled
+        if self.client_scorer:
+            scores = self.client_scorer.score_clients(client_coresets)
+            self.client_trust_scores = [asdict(s) for s in scores]
+            stats["client_scores"] = self.client_trust_scores
+            stats["num_outliers"] = sum(1 for s in scores if s.is_outlier)
+            stats["outlier_indices"] = [s.client_id for s in scores if s.is_outlier]
+
+            if stats["num_outliers"] > 0:
+                logger.warning(
+                    f"Server: Detected {stats['num_outliers']} outlier clients: "
+                    f"{stats['outlier_indices']}"
+                )
+
+        # Robust aggregation
+        result, agg_stats = self.robust_aggregator.aggregate(
+            client_coresets, weights=None
+        )
+        stats.update(agg_stats)
+
+        return result, stats
+
     def aggregate(self, seed: int = 42) -> np.ndarray:
         """Aggregate client coresets into a global memory bank.
 
@@ -115,22 +179,34 @@ class FederatedServer:
         if not hasattr(self, "_pending_coresets") or not self._pending_coresets:
             raise RuntimeError("No client coresets received. Call receive_client_coresets first.")
 
-        logger.info(f"Server: Aggregating using strategy: {self.aggregation_strategy}")
-
-        # Select aggregation strategy from registry
-        strategy_fn = STRATEGY_REGISTRY.get(self.aggregation_strategy)
-        if strategy_fn is None:
-            raise ValueError(
-                f"Unknown aggregation strategy: {self.aggregation_strategy}. "
-                f"Available: {list(STRATEGY_REGISTRY.keys())}"
+        # Use robust aggregation if enabled
+        if self.robust_aggregator is not None:
+            logger.info(
+                f"Server: Aggregating using robust method: "
+                f"{self.robustness_config.aggregation_method}"
             )
+            self.global_features, robust_stats = self._robust_aggregate(
+                self._pending_coresets, seed=seed
+            )
+            self.aggregation_stats.update(robust_stats)
+        else:
+            # Standard aggregation using strategy registry
+            logger.info(f"Server: Aggregating using strategy: {self.aggregation_strategy}")
 
-        # Execute the strategy
-        self.global_features, self.aggregation_stats = strategy_fn(
-            client_coresets=self._pending_coresets,
-            global_bank_size=self.global_bank_size,
-            seed=seed,
-        )
+            # Select aggregation strategy from registry
+            strategy_fn = STRATEGY_REGISTRY.get(self.aggregation_strategy)
+            if strategy_fn is None:
+                raise ValueError(
+                    f"Unknown aggregation strategy: {self.aggregation_strategy}. "
+                    f"Available: {list(STRATEGY_REGISTRY.keys())}"
+                )
+
+            # Execute the strategy
+            self.global_features, self.aggregation_stats = strategy_fn(
+                client_coresets=self._pending_coresets,
+                global_bank_size=self.global_bank_size,
+                seed=seed,
+            )
 
         # Build memory bank for inference
         feature_dim = self.global_features.shape[1]

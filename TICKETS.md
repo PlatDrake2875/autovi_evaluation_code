@@ -3,17 +3,19 @@
 ## Overview
 This branch focuses on testing and evaluation of the robustness implementation, including unit tests, integration tests, cross-evaluation, and running experiments to measure robustness against attacks.
 
-**Prerequisites:** The `AIT-9/robustness-core` branch should be completed and merged first.
+**Prerequisites:** The `AIT-9/robustness-core` branch has been completed and merged.
 
 ## Tickets to Complete
 
 ### AIT-23: Write unit tests for robustness module
-**Status:** To Do
+**Status:** In Progress
 **Priority:** Start here
 
 Create `tests/robustness/` directory with:
+- `test_config.py` - test RobustnessConfig validation
 - `test_aggregators.py` - test Coordinate Median output shape, robustness to outliers
 - `test_client_scoring.py` - test Z-score detector flags outliers correctly
+- `test_attacks.py` - test ModelPoisoningAttack application
 - `test_integration.py` - test FederatedServer with robustness config
 
 ---
@@ -23,7 +25,7 @@ Create `tests/robustness/` directory with:
 **Depends on:** AIT-23 (tests should pass first)
 
 Run experiments comparing robust vs baseline aggregation under attack:
-- Test with 10%, 20%, 30% malicious clients
+- Test with 10%, 20%, 30%, 40% malicious clients
 - Measure attack success rate (AUC degradation)
 - Measure detection rate if client scoring enabled
 - Generate comparison table for report
@@ -51,12 +53,14 @@ Per project guidelines, team must do cross-evaluation:
 
 ## Files to Create/Modify
 - `tests/robustness/__init__.py` (new)
+- `tests/robustness/test_config.py` (new)
 - `tests/robustness/test_aggregators.py` (new)
 - `tests/robustness/test_client_scoring.py` (new)
+- `tests/robustness/test_attacks.py` (new)
 - `tests/robustness/test_integration.py` (new)
-- `experiments/robustness_evaluation.py` (new or modify)
+- `experiments/robustness_evaluation.py` (new)
 - `results/robustness_results.csv` (output)
 
 ## Notes
-- Ensure robustness-core branch is merged before starting experiments
+- Robustness-core branch has been merged - code is ready to test
 - Cross-evaluation requires coordination with team member Miriam
