@@ -21,6 +21,7 @@ from src.data.partitioner import (
 from src.models.backbone import FeatureExtractor
 from src.models.memory_bank import MemoryBank
 from src.privacy import DPConfig
+from src.robustness import RobustnessConfig
 from src.util import get_device
 
 from .client import PatchCoreClient
@@ -59,6 +60,9 @@ class FederatedPatchCore:
         dp_epsilon: float = 1.0,
         dp_delta: float = 1e-5,
         dp_clipping_norm: float = 1.0,
+        robustness_enabled: bool = False,
+        robustness_aggregation: str = "coordinate_median",
+        robustness_zscore_threshold: float = 3.0,
     ):
         """Initialize the FederatedPatchCore system.
 
@@ -78,6 +82,9 @@ class FederatedPatchCore:
             dp_epsilon: Privacy parameter epsilon (default: 1.0).
             dp_delta: Privacy parameter delta (default: 1e-5).
             dp_clipping_norm: L2 norm clipping bound for embeddings (default: 1.0).
+            robustness_enabled: If True, enable Byzantine-resilient aggregation.
+            robustness_aggregation: Aggregation method ("coordinate_median").
+            robustness_zscore_threshold: Z-score threshold for client anomaly detection.
         """
         self.num_clients = num_clients
         self.backbone_name = backbone_name
@@ -98,12 +105,25 @@ class FederatedPatchCore:
             clipping_norm=dp_clipping_norm,
         )
 
+        # Create robustness configuration
+        self.robustness_config = RobustnessConfig(
+            enabled=robustness_enabled,
+            aggregation_method=robustness_aggregation,
+            client_scoring_method="zscore" if robustness_enabled else "none",
+            zscore_threshold=robustness_zscore_threshold,
+        )
+
         # Set device
         self.device = get_device(device)
 
         logger.info(f"FederatedPatchCore using device: {self.device}")
         if dp_enabled:
             logger.info(f"Differential privacy enabled: epsilon={dp_epsilon}, delta={dp_delta}")
+        if robustness_enabled:
+            logger.info(
+                f"Byzantine robustness enabled: aggregation={robustness_aggregation}, "
+                f"zscore_threshold={robustness_zscore_threshold}"
+            )
 
         # Initialize clients
         self.clients: List[PatchCoreClient] = []
@@ -128,6 +148,7 @@ class FederatedPatchCore:
             use_gpu=self.device.type == "cuda",
             track_privacy=dp_enabled,
             target_epsilon=dp_epsilon if dp_enabled else None,
+            robustness_config=self.robustness_config,
         )
 
         # Shared feature extractor for inference
@@ -453,6 +474,9 @@ class FederatedPatchCore:
             "dp_epsilon": self.dp_config.epsilon,
             "dp_delta": self.dp_config.delta,
             "dp_clipping_norm": self.dp_config.clipping_norm,
+            "robustness_enabled": self.robustness_config.enabled,
+            "robustness_aggregation": self.robustness_config.aggregation_method,
+            "robustness_zscore_threshold": self.robustness_config.zscore_threshold,
         }
         config_path = output_dir / "federated_config.json"
         with open(config_path, "w") as f:
