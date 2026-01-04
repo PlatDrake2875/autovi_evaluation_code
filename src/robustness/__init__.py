@@ -10,6 +10,7 @@ clients in federated learning, including:
 from .config import RobustnessConfig
 from .aggregators import RobustAggregator, CoordinateMedianAggregator
 from .client_scoring import ClientScore, ZScoreDetector
+from .attacks import ModelPoisoningAttack
 
 __all__ = [
     "RobustnessConfig",
@@ -17,4 +18,5 @@ __all__ = [
     "CoordinateMedianAggregator",
     "ClientScore",
     "ZScoreDetector",
+    "ModelPoisoningAttack",
 ]
