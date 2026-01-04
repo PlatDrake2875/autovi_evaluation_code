@@ -9,11 +9,12 @@ clients in federated learning, including:
 
 from .config import RobustnessConfig
 from .aggregators import RobustAggregator, CoordinateMedianAggregator
-from .client_scoring import ClientScore
+from .client_scoring import ClientScore, ZScoreDetector
 
 __all__ = [
     "RobustnessConfig",
     "RobustAggregator",
     "CoordinateMedianAggregator",
     "ClientScore",
+    "ZScoreDetector",
 ]
