@@ -20,6 +20,7 @@ from src.data.partitioner import (
 )
 from src.models.backbone import FeatureExtractor
 from src.models.memory_bank import MemoryBank
+from src.privacy import DPConfig
 from src.util import get_device
 
 from .client import PatchCoreClient
@@ -54,6 +55,10 @@ class FederatedPatchCore:
         use_faiss: bool = True,
         device: str = "auto",
         num_rounds: int = 1,
+        dp_enabled: bool = False,
+        dp_epsilon: float = 1.0,
+        dp_delta: float = 1e-5,
+        dp_clipping_norm: float = 1.0,
     ):
         """Initialize the FederatedPatchCore system.
 
@@ -69,6 +74,10 @@ class FederatedPatchCore:
             use_faiss: Whether to use FAISS for nearest neighbor search.
             device: Device for computation.
             num_rounds: Number of federated training rounds.
+            dp_enabled: If True, enable differential privacy for client coresets.
+            dp_epsilon: Privacy parameter epsilon (default: 1.0).
+            dp_delta: Privacy parameter delta (default: 1e-5).
+            dp_clipping_norm: L2 norm clipping bound for embeddings (default: 1.0).
         """
         self.num_clients = num_clients
         self.backbone_name = backbone_name
@@ -81,10 +90,20 @@ class FederatedPatchCore:
         self.use_faiss = use_faiss
         self.num_rounds = num_rounds
 
+        # Create DP configuration
+        self.dp_config = DPConfig(
+            enabled=dp_enabled,
+            epsilon=dp_epsilon,
+            delta=dp_delta,
+            clipping_norm=dp_clipping_norm,
+        )
+
         # Set device
         self.device = get_device(device)
 
         logger.info(f"FederatedPatchCore using device: {self.device}")
+        if dp_enabled:
+            logger.info(f"Differential privacy enabled: epsilon={dp_epsilon}, delta={dp_delta}")
 
         # Initialize clients
         self.clients: List[PatchCoreClient] = []
@@ -96,6 +115,7 @@ class FederatedPatchCore:
                 neighborhood_size=neighborhood_size,
                 coreset_ratio=coreset_ratio,
                 device=str(self.device),
+                dp_config=self.dp_config,
             )
             self.clients.append(client)
 
@@ -106,6 +126,8 @@ class FederatedPatchCore:
             weighted_by_samples=weighted_by_samples,
             use_faiss=use_faiss,
             use_gpu=self.device.type == "cuda",
+            track_privacy=dp_enabled,
+            target_epsilon=dp_epsilon if dp_enabled else None,
         )
 
         # Shared feature extractor for inference
@@ -269,7 +291,7 @@ class FederatedPatchCore:
 
         # Phase 2: Server aggregation
         logger.info("--- Phase 2: Server Aggregation ---")
-        self.server.receive_client_coresets(client_coresets, client_stats)
+        self.server.receive_client_coresets(client_coresets, client_stats, round_num=round_num)
         global_features = self.server.aggregate(seed=seed)
 
         # Build global memory bank
@@ -427,6 +449,10 @@ class FederatedPatchCore:
             "feature_dim": self.feature_dim,
             "image_size": self.image_size,
             "feature_map_size": self.feature_map_size,
+            "dp_enabled": self.dp_config.enabled,
+            "dp_epsilon": self.dp_config.epsilon,
+            "dp_delta": self.dp_config.delta,
+            "dp_clipping_norm": self.dp_config.clipping_norm,
         }
         config_path = output_dir / "federated_config.json"
         with open(config_path, "w") as f:
@@ -439,6 +465,14 @@ class FederatedPatchCore:
             with open(stats_path, "w") as f:
                 json.dump(_convert_to_serializable(self.training_stats), f, indent=2)
             logger.info(f"Saved training log to {stats_path}")
+
+        # Save privacy report if tracking
+        privacy_report = self.server.get_privacy_report()
+        if privacy_report:
+            privacy_path = output_dir / "privacy_report.json"
+            with open(privacy_path, "w") as f:
+                json.dump(privacy_report, f, indent=2)
+            logger.info(f"Saved privacy report to {privacy_path}")
 
     def load(self, input_dir: str) -> None:
         """Load a previously saved federated model.

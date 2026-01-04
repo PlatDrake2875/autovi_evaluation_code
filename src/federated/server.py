@@ -8,6 +8,7 @@ import numpy as np
 from loguru import logger
 
 from src.models.memory_bank import MemoryBank
+from src.privacy import PrivacyAccountant
 from .strategies.federated_memory import STRATEGY_REGISTRY
 
 
@@ -31,6 +32,8 @@ class FederatedServer:
         weighted_by_samples: bool = True,
         use_faiss: bool = True,
         use_gpu: bool = False,
+        track_privacy: bool = False,
+        target_epsilon: Optional[float] = None,
     ):
         """Initialize the federated server.
 
@@ -41,12 +44,15 @@ class FederatedServer:
             weighted_by_samples: If True, weight client contributions by data size.
             use_faiss: Whether to use FAISS for the global memory bank.
             use_gpu: Whether to use GPU for FAISS.
+            track_privacy: If True, track privacy budget using PrivacyAccountant.
+            target_epsilon: Target privacy budget (epsilon). Only used if track_privacy=True.
         """
         self.global_bank_size = global_bank_size
         self.aggregation_strategy = aggregation_strategy
         self.weighted_by_samples = weighted_by_samples
         self.use_faiss = use_faiss
         self.use_gpu = use_gpu
+        self.track_privacy = track_privacy
 
         # Global memory bank (populated after aggregation)
         self.global_memory_bank: Optional[MemoryBank] = None
@@ -56,16 +62,24 @@ class FederatedServer:
         self.aggregation_stats: Dict = {}
         self.client_stats: List[Dict] = []
 
+        # Privacy accountant for budget tracking
+        self.privacy_accountant: Optional[PrivacyAccountant] = None
+        if track_privacy:
+            self.privacy_accountant = PrivacyAccountant(target_epsilon)
+            logger.info(f"Server: Privacy tracking enabled with target_epsilon={target_epsilon}")
+
     def receive_client_coresets(
         self,
         client_coresets: List[np.ndarray],
         client_stats: Optional[List[Dict]] = None,
+        round_num: int = 0,
     ) -> None:
         """Receive local coresets from all clients.
 
         Args:
             client_coresets: List of local coreset arrays from each client.
             client_stats: Optional list of statistics from each client.
+            round_num: Current training round number (for privacy accounting).
         """
         self._pending_coresets = client_coresets
         if client_stats:
@@ -74,6 +88,20 @@ class FederatedServer:
         logger.info(f"Server: Received coresets from {len(client_coresets)} clients")
         for i, coreset in enumerate(client_coresets):
             logger.debug(f"  Client {i}: {len(coreset)} patches")
+
+        # Record privacy expenditure from client stats
+        if self.privacy_accountant is not None and client_stats:
+            for stats in client_stats:
+                epsilon = stats.get("dp_epsilon", 0.0)
+                delta = stats.get("dp_delta", 0.0)
+                client_id = stats.get("client_id", "unknown")
+                if epsilon > 0:
+                    self.privacy_accountant.record_expenditure(
+                        epsilon=epsilon,
+                        delta=delta,
+                        round_num=round_num,
+                        description=f"Client {client_id} coreset sanitization",
+                    )
 
     def aggregate(self, seed: int = 42) -> np.ndarray:
         """Aggregate client coresets into a global memory bank.
@@ -165,7 +193,22 @@ class FederatedServer:
             stats["actual_global_bank_size"] = len(self.global_features)
             stats["feature_dim"] = self.global_features.shape[1]
 
+        # Include privacy report if tracking
+        privacy_report = self.get_privacy_report()
+        if privacy_report is not None:
+            stats["privacy_report"] = privacy_report
+
         return stats
+
+    def get_privacy_report(self) -> Optional[Dict]:
+        """Get the privacy budget report.
+
+        Returns:
+            Dictionary with privacy expenditure details, or None if not tracking.
+        """
+        if self.privacy_accountant is None:
+            return None
+        return self.privacy_accountant.get_report()
 
     def save(self, output_dir: str) -> None:
         """Save the global memory bank and statistics.

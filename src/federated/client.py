@@ -1,6 +1,6 @@
 """PatchCore client for federated learning."""
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 from src.models.backbone import FeatureExtractor
 from src.models.memory_bank import greedy_coreset_selection
+from src.privacy import EmbeddingSanitizer, DPConfig
 from src.util import get_device, extract_images_from_batch
 
 
@@ -35,6 +36,7 @@ class PatchCoreClient:
         neighborhood_size: int = 3,
         coreset_ratio: float = 0.1,
         device: str = "auto",
+        dp_config: Optional[DPConfig] = None,
     ):
         """Initialize the PatchCore client.
 
@@ -45,6 +47,7 @@ class PatchCoreClient:
             neighborhood_size: Kernel size for local neighborhood averaging.
             coreset_ratio: Fraction of local patches to keep in local coreset.
             device: Device for computation ("auto", "cuda", or "cpu").
+            dp_config: Optional differential privacy configuration.
         """
         self.client_id = client_id
         self.backbone_name = backbone_name
@@ -75,6 +78,13 @@ class PatchCoreClient:
             "num_patches": 0,
             "coreset_size": 0,
         }
+
+        # Differential privacy
+        self.dp_config = dp_config
+        self.sanitizer: Optional[EmbeddingSanitizer] = None
+        if dp_config and dp_config.enabled:
+            self.sanitizer = EmbeddingSanitizer(dp_config)
+            logger.info(f"Client {client_id}: DP enabled with epsilon={dp_config.epsilon}")
 
     def extract_features(
         self,
@@ -148,15 +158,22 @@ class PatchCoreClient:
             f"({target_size} from {n_samples} patches)..."
         )
 
+        # Use client-specific seed for reproducibility
+        client_seed = seed + self.client_id
+
         if target_size < n_samples:
-            # Use client-specific seed for reproducibility
-            client_seed = seed + self.client_id
             selected_indices = greedy_coreset_selection(
                 features, target_size=target_size, seed=client_seed
             )
             self.local_coreset = features[selected_indices].copy()
         else:
             self.local_coreset = features.copy()
+
+        # Apply differential privacy sanitization if enabled
+        if self.sanitizer is not None:
+            self.local_coreset = self.sanitizer.sanitize(
+                self.local_coreset, seed=client_seed
+            )
 
         # Update statistics
         self.stats["coreset_size"] = len(self.local_coreset)
@@ -200,6 +217,16 @@ class PatchCoreClient:
         """
         return self.stats.copy()
 
+    def get_privacy_spent(self) -> Tuple[float, float]:
+        """Get privacy budget spent.
+
+        Returns:
+            Tuple of (epsilon, delta). Returns (0.0, 0.0) if DP is disabled.
+        """
+        if self.sanitizer is None:
+            return (0.0, 0.0)
+        return self.sanitizer.get_privacy_spent()
+
     def set_global_memory_bank(self, global_memory: np.ndarray) -> None:
         """Receive and store the global memory bank from server.
 
@@ -219,8 +246,9 @@ class PatchCoreClient:
         )
 
     def __repr__(self) -> str:
+        dp_status = "enabled" if self.sanitizer is not None else "disabled"
         return (
             f"PatchCoreClient(id={self.client_id}, "
             f"coreset_size={self.stats.get('coreset_size', 0)}, "
-            f"device={self.device})"
+            f"device={self.device}, dp={dp_status})"
         )
