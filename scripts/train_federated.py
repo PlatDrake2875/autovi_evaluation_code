@@ -47,6 +47,17 @@ def parse_args():
     parser.add_argument("--num_rounds", type=int, default=None, help="Number of federated training rounds (overrides config)")
     parser.add_argument("--checkpoint_every", type=int, default=1, help="Save checkpoint every N rounds (default: 1)")
     parser.add_argument("--categories", type=str, nargs="+", default=None, help="Categories to train on (default: all)")
+    # Differential privacy overrides
+    parser.add_argument("--dp_epsilon", type=float, default=None, help="Override DP epsilon (overrides config)")
+    # Robustness options
+    parser.add_argument("--robust_aggregation", type=str, default=None,
+                        choices=["coordinate_median", "trimmed_mean", "krum"],
+                        help="Enable robust aggregation with specified method")
+    parser.add_argument("--simulate_attack", type=str, default=None,
+                        choices=["scaling", "noise", "sign_flip", "label_flip"],
+                        help="Simulate Byzantine attack during training")
+    parser.add_argument("--malicious_fraction", type=float, default=0.2,
+                        help="Fraction of clients that are malicious (default: 0.2)")
     return parser.parse_args()
 
 
@@ -58,14 +69,33 @@ def get_config_values(config, args):
     return seed, output_dir, num_rounds
 
 
-def get_dp_config(config):
-    """Extract differential privacy configuration."""
+def get_dp_config(config, args):
+    """Extract differential privacy configuration with CLI overrides."""
     dp_config = config.get("differential_privacy", {})
+    epsilon = args.dp_epsilon if args.dp_epsilon is not None else dp_config.get("epsilon", 1.0)
     return {
         "enabled": dp_config.get("enabled", False),
-        "epsilon": dp_config.get("epsilon", 1.0),
+        "epsilon": epsilon,
         "delta": dp_config.get("delta", 1e-5),
         "clipping_norm": dp_config.get("clipping_norm", 1.0),
+    }
+
+
+def get_robustness_config(args):
+    """Extract robustness configuration from CLI args."""
+    return {
+        "enabled": args.robust_aggregation is not None,
+        "aggregation_method": args.robust_aggregation or "coordinate_median",
+        "zscore_threshold": 3.0,
+    }
+
+
+def get_attack_config(args):
+    """Extract attack simulation configuration from CLI args."""
+    return {
+        "enabled": args.simulate_attack is not None,
+        "attack_type": args.simulate_attack,
+        "malicious_fraction": args.malicious_fraction,
     }
 
 
@@ -109,7 +139,9 @@ def main():
     # Get config values with CLI overrides
     seed, output_dir, num_rounds = get_config_values(config, args)
     checkpoint_every = args.checkpoint_every
-    dp_config = get_dp_config(config)
+    dp_config = get_dp_config(config, args)
+    robustness_config = get_robustness_config(args)
+    attack_config = get_attack_config(args)
 
     # Setup
     set_random_seeds(seed)
@@ -137,6 +169,11 @@ def main():
         header_params["  Epsilon"] = dp_config["epsilon"]
         header_params["  Delta"] = dp_config["delta"]
         header_params["  Clipping norm"] = dp_config["clipping_norm"]
+    if robustness_config["enabled"]:
+        header_params["Robust Aggregation"] = robustness_config["aggregation_method"]
+    if attack_config["enabled"]:
+        header_params["Attack Simulation"] = attack_config["attack_type"]
+        header_params["  Malicious fraction"] = attack_config["malicious_fraction"]
     print_training_header("Federated PatchCore Training", header_params)
 
     # Load dataset
@@ -204,6 +241,12 @@ def main():
         dp_epsilon=dp_config["epsilon"],
         dp_delta=dp_config["delta"],
         dp_clipping_norm=dp_config["clipping_norm"],
+        robustness_enabled=robustness_config["enabled"],
+        robustness_aggregation=robustness_config["aggregation_method"],
+        robustness_zscore_threshold=robustness_config["zscore_threshold"],
+        attack_enabled=attack_config["enabled"],
+        attack_type=attack_config["attack_type"],
+        malicious_fraction=attack_config["malicious_fraction"],
     )
     federated_model.partition = partition
     federated_model.partition_stats = partition_stats

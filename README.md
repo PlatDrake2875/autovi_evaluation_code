@@ -188,6 +188,28 @@ print(f"Coefficient of Variation: {metrics.coefficient_of_variation:.4f}")
 
 ## Running Experiments
 
+### Important: Per-Category Training
+
+PatchCore builds a memory bank of "normal" patch features for anomaly detection. Because different object categories (e.g., engine_wiring vs tank_screw) have fundamentally different visual characteristics, **federated training must be performed separately for each category**.
+
+Training a single model across all categories would mix patch features from different object types, making the concept of "normal" meaningless - the memory bank would contain unrelated features that don't represent normalcy for any specific object.
+
+**Correct approach:**
+```bash
+# Train federated model for each category separately
+for category in engine_wiring pipe_clip pipe_staple tank_screw underbody_pipes underbody_screw; do
+    python scripts/train_federated.py \
+        --config experiments/configs/federated/fedavg_dp_config.yaml \
+        --data_root /path/to/autovi \
+        --categories $category \
+        --output_dir outputs/federated/dp/$category
+done
+```
+
+This also naturally handles the different image sizes in the dataset:
+- Small objects (400×400): engine_wiring, pipe_clip, pipe_staple
+- Large objects (1000×750): tank_screw, underbody_pipes, underbody_screw
+
 ### Trade-off Analysis
 
 Analyze accuracy vs privacy vs robustness trade-offs:

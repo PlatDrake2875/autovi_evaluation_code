@@ -23,7 +23,7 @@ aggregation:
 differential_privacy:
   enabled: true
   epsilon: 1.0        # Privacy parameter (lower = more private, range: 0.1-10.0)
-  delta: 1e-5         # Failure probability (range: 0-1, typically 1e-5 to 1e-7)
+  delta: 0.00001      # Failure probability (range: 0-1, typically 1e-5 to 1e-7)
   clipping_norm: 1.0  # L2 norm clipping bound for embeddings
 
 preprocessing:

@@ -21,7 +21,7 @@ from src.data.partitioner import (
 from src.models.backbone import FeatureExtractor
 from src.models.memory_bank import MemoryBank
 from src.privacy import DPConfig
-from src.robustness import RobustnessConfig
+from src.robustness import RobustnessConfig, ModelPoisoningAttack
 from src.util import get_device
 
 from .client import PatchCoreClient
@@ -63,6 +63,9 @@ class FederatedPatchCore:
         robustness_enabled: bool = False,
         robustness_aggregation: str = "coordinate_median",
         robustness_zscore_threshold: float = 3.0,
+        attack_enabled: bool = False,
+        attack_type: Optional[str] = None,
+        malicious_fraction: float = 0.2,
     ):
         """Initialize the FederatedPatchCore system.
 
@@ -85,6 +88,9 @@ class FederatedPatchCore:
             robustness_enabled: If True, enable Byzantine-resilient aggregation.
             robustness_aggregation: Aggregation method ("coordinate_median").
             robustness_zscore_threshold: Z-score threshold for client anomaly detection.
+            attack_enabled: If True, simulate Byzantine attacks during training.
+            attack_type: Type of attack ("scaling", "noise", "sign_flip").
+            malicious_fraction: Fraction of clients that are malicious (default: 0.2).
         """
         self.num_clients = num_clients
         self.backbone_name = backbone_name
@@ -112,6 +118,23 @@ class FederatedPatchCore:
             client_scoring_method="zscore" if robustness_enabled else "none",
             zscore_threshold=robustness_zscore_threshold,
         )
+
+        # Create attack configuration
+        self.attack_enabled = attack_enabled
+        self.attack_type = attack_type
+        self.malicious_fraction = malicious_fraction
+        self.attack: Optional[ModelPoisoningAttack] = None
+        self.malicious_indices: List[int] = []
+
+        if attack_enabled and attack_type:
+            self.attack = ModelPoisoningAttack(attack_type=attack_type)
+            # Determine malicious client indices
+            num_malicious = max(1, int(num_clients * malicious_fraction))
+            self.malicious_indices = list(range(num_malicious))
+            logger.warning(
+                f"Attack simulation enabled: {attack_type} attack on "
+                f"{num_malicious}/{num_clients} clients (indices: {self.malicious_indices})"
+            )
 
         # Set device
         self.device = get_device(device)
@@ -309,6 +332,13 @@ class FederatedPatchCore:
             coreset = client.extract_and_build_coreset(dataloader, seed=seed)
             client_coresets.append(coreset)
             client_stats.append(client.get_stats())
+
+        # Apply attack simulation if enabled
+        if self.attack is not None and self.malicious_indices:
+            logger.warning(
+                f"--- Applying {self.attack_type} attack to clients {self.malicious_indices} ---"
+            )
+            client_coresets = self.attack.apply(client_coresets, self.malicious_indices)
 
         # Phase 2: Server aggregation
         logger.info("--- Phase 2: Server Aggregation ---")
