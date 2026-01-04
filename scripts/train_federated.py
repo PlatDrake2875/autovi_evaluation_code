@@ -58,6 +58,17 @@ def get_config_values(config, args):
     return seed, output_dir, num_rounds
 
 
+def get_dp_config(config):
+    """Extract differential privacy configuration."""
+    dp_config = config.get("differential_privacy", {})
+    return {
+        "enabled": dp_config.get("enabled", False),
+        "epsilon": dp_config.get("epsilon", 1.0),
+        "delta": dp_config.get("delta", 1e-5),
+        "clipping_norm": dp_config.get("clipping_norm", 1.0),
+    }
+
+
 def validate_categories(categories):
     """Validate that all categories are known."""
     for cat in categories:
@@ -98,6 +109,7 @@ def main():
     # Get config values with CLI overrides
     seed, output_dir, num_rounds = get_config_values(config, args)
     checkpoint_every = args.checkpoint_every
+    dp_config = get_dp_config(config)
 
     # Setup
     set_random_seeds(seed)
@@ -110,7 +122,7 @@ def main():
 
     # Print header
     fed_config = config["federated"]
-    print_training_header("Federated PatchCore Training", {
+    header_params = {
         "Data root": args.data_root,
         "Output directory": output_dir,
         "Categories": args.categories if args.categories else "all",
@@ -119,7 +131,13 @@ def main():
         "Number of rounds": num_rounds,
         "Checkpoint every": f"{checkpoint_every} rounds",
         "Random seed": seed,
-    })
+    }
+    if dp_config["enabled"]:
+        header_params["Differential Privacy"] = "enabled"
+        header_params["  Epsilon"] = dp_config["epsilon"]
+        header_params["  Delta"] = dp_config["delta"]
+        header_params["  Clipping norm"] = dp_config["clipping_norm"]
+    print_training_header("Federated PatchCore Training", header_params)
 
     # Load dataset
     print("\n--- Loading Dataset ---")
@@ -182,6 +200,10 @@ def main():
         use_faiss=model_config.get("use_faiss", True),
         device=args.device,
         num_rounds=num_rounds,
+        dp_enabled=dp_config["enabled"],
+        dp_epsilon=dp_config["epsilon"],
+        dp_delta=dp_config["delta"],
+        dp_clipping_norm=dp_config["clipping_norm"],
     )
     federated_model.partition = partition
     federated_model.partition_stats = partition_stats
