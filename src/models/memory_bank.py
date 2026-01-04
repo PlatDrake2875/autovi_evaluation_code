@@ -5,6 +5,7 @@ from typing import Optional, Tuple
 import numpy as np
 import torch
 from loguru import logger
+from tqdm import tqdm
 
 try:
     import faiss
@@ -247,6 +248,8 @@ def greedy_coreset_selection(
     The algorithm iteratively selects the point that is furthest from the
     current set of selected points, maximizing coverage of the feature space.
 
+    Uses PyTorch GPU acceleration when available for fast distance computation.
+
     Args:
         features: Feature array of shape [N, D].
         target_size: Number of samples to select.
@@ -261,12 +264,68 @@ def greedy_coreset_selection(
     if target_size >= n_samples:
         return np.arange(n_samples)
 
-    # Initialize with random sample
-    selected = [np.random.randint(n_samples)]
-    min_distances = np.full(n_samples, np.inf)
+    # Convert to float32 and ensure contiguous
+    features = np.ascontiguousarray(features.astype(np.float32))
 
-    # Convert to float32 for efficiency
-    features = features.astype(np.float32)
+    # Try to use PyTorch GPU for acceleration
+    if torch.cuda.is_available():
+        try:
+            return _greedy_coreset_pytorch_gpu(features, target_size, seed)
+        except Exception as e:
+            logger.warning(f"PyTorch GPU coreset failed, falling back to CPU: {e}")
+
+    # CPU fallback
+    return _greedy_coreset_cpu(features, target_size, seed)
+
+
+def _greedy_coreset_pytorch_gpu(
+    features: np.ndarray,
+    target_size: int,
+    seed: int,
+) -> np.ndarray:
+    """GPU-accelerated greedy coreset selection using PyTorch."""
+    n_samples = features.shape[0]
+
+    # Move features to GPU
+    device = torch.device("cuda")
+    features_gpu = torch.from_numpy(features).to(device)
+
+    # Initialize with random sample
+    np.random.seed(seed)
+    selected = [np.random.randint(n_samples)]
+    min_distances = torch.full((n_samples,), float('inf'), device=device)
+
+    for i in tqdm(range(target_size - 1), desc="Coreset selection"):
+        # Compute distances from last selected point to all points
+        last_selected = features_gpu[selected[-1]].unsqueeze(0)
+        distances = torch.cdist(features_gpu, last_selected).squeeze(1)
+
+        # Update minimum distances
+        min_distances = torch.minimum(min_distances, distances)
+
+        # Mask already selected points
+        min_distances[selected[-1]] = -1
+
+        # Select point with maximum minimum distance
+        next_idx = torch.argmax(min_distances).item()
+        selected.append(next_idx)
+
+    return np.array(selected)
+
+
+def _greedy_coreset_cpu(
+    features: np.ndarray,
+    target_size: int,
+    seed: int,
+) -> np.ndarray:
+    """CPU fallback for greedy coreset selection."""
+    n_samples = features.shape[0]
+
+    np.random.seed(seed)
+    selected = [np.random.randint(n_samples)]
+    min_distances = np.full(n_samples, np.inf, dtype=np.float32)
+
+    logger.info(f"  Coreset selection (CPU): 0/{target_size}")
 
     for i in range(target_size - 1):
         # Update minimum distances based on last selected point
@@ -282,7 +341,7 @@ def greedy_coreset_selection(
         selected.append(next_idx)
 
         if (i + 1) % 1000 == 0:
-            logger.debug(f"  Coreset selection: {i + 1}/{target_size - 1}")
+            logger.info(f"  Coreset selection (CPU): {i + 1}/{target_size}")
 
     return np.array(selected)
 

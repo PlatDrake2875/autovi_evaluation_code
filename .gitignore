@@ -1,5 +1,6 @@
 # Data directory
 ./auto_vi
+dataset/
 
 # Python
 __pycache__/
