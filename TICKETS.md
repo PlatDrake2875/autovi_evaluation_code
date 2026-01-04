@@ -5,6 +5,8 @@ This branch focuses on analysis, documentation, and presentation tasks. It inclu
 
 **Prerequisites:** Implementation and testing branches should be completed first to have results to analyze.
 
+**Note:** Robustness (AIT-14) and Fairness (AIT-32) modules have been merged from main.
+
 ## Tickets to Complete
 
 ### AIT-20: Trade-off analysis: Accuracy vs DP vs Robustness
@@ -41,8 +43,8 @@ Per guidelines, must provide quantitative comparison:
 **Depends on:** AIT-20, AIT-27 (need to know final features)
 
 Update project README.md with:
-- New module descriptions (`src/robustness/`, `src/interpretability/`)
-- Usage examples for robustness and XAI features
+- New module descriptions (`src/robustness/`, `src/fairness/`, `src/privacy/`)
+- Usage examples for robustness, fairness, and DP features
 - Configuration options explained
 - Link scripts to corresponding report sections
 
@@ -54,8 +56,9 @@ Update project README.md with:
 
 Prepare the final presentation for Stage 2:
 - Introduction and recap of Stage 1
+- Differential Privacy: methods and privacy-accuracy trade-off
 - Robustness: methods and key results (Adrian presents)
-- Interpretability: methods and sample visualizations (Miriam presents)
+- Fairness: metrics and performance parity analysis
 - Trade-off analysis and conclusions
 
 **Note:** Per guidelines - each member must present part of the work
@@ -69,7 +72,7 @@ Prepare the final presentation for Stage 2:
 4. AIT-22 (presentation) - do last once all results ready
 
 ## Files to Create/Modify
-- `experiments/trade_off_analysis.py` (new or modify)
+- `experiments/scripts/trade_off_analysis.py` (new)
 - `results/trade_off_table.csv` (output)
 - `results/comparison_table.csv` (output)
 - `README.md` (modify)
@@ -77,5 +80,5 @@ Prepare the final presentation for Stage 2:
 
 ## Notes
 - This branch should be worked on after implementation and testing are complete
-- Coordinate with Miriam for interpretability sections
+- Robustness and fairness modules are now available from main
 - Presentation requires both team members' input
