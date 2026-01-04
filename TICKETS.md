@@ -1,66 +1,84 @@
-# Branch: AIT-14/robustness-testing
+# Branch: AIT-20/analysis-docs
 
 ## Overview
-This branch focuses on testing and evaluation of the robustness implementation, including unit tests, integration tests, cross-evaluation, and running experiments to measure robustness against attacks.
+This branch focuses on analysis, documentation, and presentation tasks. It includes trade-off analysis, quantitative comparisons, README updates, and final presentation preparation.
 
-**Prerequisites:** The `AIT-9/robustness-core` branch has been completed and merged.
+**Prerequisites:** Implementation and testing branches should be completed first to have results to analyze.
+
+**Note:** Robustness (AIT-14) and Fairness (AIT-32) modules have been merged from main.
 
 ## Tickets to Complete
 
-### AIT-23: Write unit tests for robustness module
-**Status:** In Progress
-**Priority:** Start here
+### AIT-20: Trade-off analysis: Accuracy vs DP vs Robustness
+**Status:** To Do
+**Priority:** Start here (needs experiment results)
 
-Create `tests/robustness/` directory with:
-- `test_config.py` - test RobustnessConfig validation
-- `test_aggregators.py` - test Coordinate Median output shape, robustness to outliers
-- `test_client_scoring.py` - test Z-score detector flags outliers correctly
-- `test_attacks.py` - test ModelPoisoningAttack application
-- `test_integration.py` - test FederatedServer with robustness config
+Analyze trade-offs between trustworthiness mechanisms:
+- Baseline accuracy (no trust mechanisms)
+- Accuracy with DP at different epsilon values (1.0, 5.0, 10.0)
+- Accuracy with robust aggregation vs baseline under attack
+- Combined: DP + Robustness
+
+**Output:** `trade_off_table.csv` and visualization showing accuracy-privacy-robustness trade-offs
 
 ---
 
-### AIT-14: Run robustness evaluation experiments
+### AIT-27: Quantitative comparison: Centralized vs Federated vs Trust-Enhanced
 **Status:** To Do
-**Depends on:** AIT-23 (tests should pass first)
+**Depends on:** AIT-20 (uses same data)
 
-Run experiments comparing robust vs baseline aggregation under attack:
-- Test with 10%, 20%, 30%, 40% malicious clients
-- Measure attack success rate (AUC degradation)
-- Measure detection rate if client scoring enabled
-- Generate comparison table for report
+Per guidelines, must provide quantitative comparison:
+- Baseline centralized model accuracy
+- Federated model accuracy (Stage 1)
+- Federated + DP accuracy at various epsilon
+- Federated + Robustness accuracy (clean and under attack)
+- Combined: Federated + DP + Robustness
 
-**Output:** `robustness_results.csv` and comparison plots
+**Output:** Create comparison table and visualization for report
 
 ---
 
-### AIT-26: Cross-evaluation: Test each other's implementations
+### AIT-30: Update README with Stage 2 documentation
 **Status:** To Do
-**Depends on:** AIT-14 (need working implementation to test)
+**Depends on:** AIT-20, AIT-27 (need to know final features)
 
-Per project guidelines, team must do cross-evaluation:
-- Adrian tests Miriam's XAI implementation
-- Miriam tests Adrian's robustness implementation
-- Document any issues found and how they were resolved
-- Include cross-evaluation results in report
+Update project README.md with:
+- New module descriptions (`src/robustness/`, `src/fairness/`, `src/privacy/`)
+- Usage examples for robustness, fairness, and DP features
+- Configuration options explained
+- Link scripts to corresponding report sections
+
+---
+
+### AIT-22: Prepare final presentation
+**Status:** To Do
+**Priority:** Do last (needs all results)
+
+Prepare the final presentation for Stage 2:
+- Introduction and recap of Stage 1
+- Differential Privacy: methods and privacy-accuracy trade-off
+- Robustness: methods and key results (Adrian presents)
+- Fairness: metrics and performance parity analysis
+- Trade-off analysis and conclusions
+
+**Note:** Per guidelines - each member must present part of the work
 
 ---
 
 ## Suggested Order
-1. AIT-23 (unit tests) - write tests for robustness module
-2. AIT-14 (experiments) - run evaluation experiments
-3. AIT-26 (cross-eval) - coordinate with team member
+1. AIT-20 (trade-off analysis) - requires experiment results
+2. AIT-27 (quantitative comparison) - builds on AIT-20
+3. AIT-30 (README) - document final features
+4. AIT-22 (presentation) - do last once all results ready
 
 ## Files to Create/Modify
-- `tests/robustness/__init__.py` (new)
-- `tests/robustness/test_config.py` (new)
-- `tests/robustness/test_aggregators.py` (new)
-- `tests/robustness/test_client_scoring.py` (new)
-- `tests/robustness/test_attacks.py` (new)
-- `tests/robustness/test_integration.py` (new)
-- `experiments/robustness_evaluation.py` (new)
-- `results/robustness_results.csv` (output)
+- `experiments/scripts/trade_off_analysis.py` (new)
+- `results/trade_off_table.csv` (output)
+- `results/comparison_table.csv` (output)
+- `README.md` (modify)
+- `docs/presentation/` (new directory)
 
 ## Notes
-- Robustness-core branch has been merged - code is ready to test
-- Cross-evaluation requires coordination with team member Miriam
+- This branch should be worked on after implementation and testing are complete
+- Robustness and fairness modules are now available from main
+- Presentation requires both team members' input

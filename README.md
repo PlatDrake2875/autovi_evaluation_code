@@ -91,6 +91,185 @@ The script requires the following user arguments:
 the AUC-sPRO results for the pixelwise localization of anomalies is shown. When selecting `classification`, the image level AUC-ROC for anomaly classification is shown.
 - `integration_limit`: The integration limit until which the area under the sPRO curve is computed. This parameter is only applicable when `metric_type` is set to `localization`.
 
+---
+
+# Stage 2: Trustworthiness Enhancements
+
+This project extends the baseline evaluation framework with trustworthiness features for federated learning:
+
+- **Differential Privacy (DP)**: Privacy-preserving federated learning with configurable epsilon/delta budgets
+- **Robustness**: Byzantine-robust aggregation and attack detection
+- **Fairness**: Client and category performance parity evaluation
+
+## Trustworthiness Modules
+
+### Privacy (`src/privacy/`)
+
+Implements differential privacy for federated PatchCore with Gaussian mechanism:
+
+```python
+from src.privacy import DPConfig, EmbeddingSanitizer, PrivacyAccountant
+
+# Configure DP
+dp_config = DPConfig(
+    epsilon=5.0,       # Privacy budget (lower = more private)
+    delta=1e-5,        # Failure probability
+    clipping_norm=1.0  # L2 norm clipping bound
+)
+
+# Create sanitizer
+sanitizer = EmbeddingSanitizer(dp_config)
+
+# Apply DP to embeddings
+private_embeddings = sanitizer.sanitize(embeddings)
+
+# Track privacy budget
+accountant = PrivacyAccountant(epsilon=5.0, delta=1e-5)
+accountant.step()
+print(f"Remaining budget: {accountant.remaining_epsilon}")
+```
+
+### Robustness (`src/robustness/`)
+
+Byzantine-robust aggregation with attack detection:
+
+```python
+from src.robustness import (
+    RobustnessConfig,
+    CoordinateMedianAggregator,
+    ZScoreDetector,
+    ModelPoisoningAttack,
+)
+
+# Configure robust aggregation
+config = RobustnessConfig(
+    enabled=True,
+    aggregation_method="coordinate_median",  # Robust to 50% malicious
+    client_scoring_method="zscore",          # Detect anomalous clients
+    zscore_threshold=2.5,
+)
+
+# Create aggregator
+aggregator = CoordinateMedianAggregator()
+robust_result = aggregator.aggregate(client_updates)
+
+# Detect malicious clients
+detector = ZScoreDetector(threshold=2.5)
+scores = detector.score_clients(client_updates)
+outliers = [s for s in scores if s["is_outlier"]]
+
+# Simulate attacks (for testing)
+attack = ModelPoisoningAttack(attack_type="scaling", scale_factor=100.0)
+attacked_data = attack.apply(client_data, malicious_indices=[0, 1])
+```
+
+### Fairness (`src/fairness/`)
+
+Evaluate performance parity across clients and categories:
+
+```python
+from src.fairness import FairnessConfig, compute_all_metrics
+
+# Compute fairness metrics from per-client AUC scores
+client_performances = {
+    "client_0": 0.85,
+    "client_1": 0.82,
+    "client_2": 0.78,
+    "client_3": 0.88,
+    "client_4": 0.80,
+}
+
+metrics = compute_all_metrics(client_performances)
+print(f"Jain's Fairness Index: {metrics.jains_index:.4f}")  # 1.0 = perfect
+print(f"Performance Gap: {metrics.performance_gap:.4f}")   # max - min
+print(f"Worst-Case AUC: {metrics.worst_case:.4f}")         # Rawlsian fairness
+print(f"Coefficient of Variation: {metrics.coefficient_of_variation:.4f}")
+```
+
+## Running Experiments
+
+### Trade-off Analysis
+
+Analyze accuracy vs privacy vs robustness trade-offs:
+
+```bash
+python experiments/scripts/trade_off_analysis.py \
+    --metrics_dir outputs/evaluation/metrics \
+    --robustness_dir results/robustness \
+    --output_dir results
+```
+
+Outputs:
+- `results/trade_off_table.csv` - Main comparison table
+- `results/trade_off_plot.png` - Visualization
+- `results/trade_off_summary.md` - Summary report
+
+### Robustness Evaluation
+
+Test robustness against Byzantine attacks:
+
+```bash
+python experiments/scripts/robustness_evaluation.py \
+    --output_dir results/robustness \
+    --num_clients 10 \
+    --malicious_fractions 0.1 0.2 0.3 0.4 \
+    --attack_types scaling noise sign_flip
+```
+
+### Comparison Reports
+
+Generate comprehensive comparison reports:
+
+```bash
+python experiments/scripts/generate_comparison_report.py \
+    --metrics_dir outputs/evaluation/metrics \
+    --output_dir results \
+    --format all
+```
+
+## Configuration Files
+
+Example configurations in `experiments/configs/`:
+
+| Config | Description |
+|--------|-------------|
+| `baseline/patchcore_config.yaml` | Centralized PatchCore |
+| `federated/fedavg_iid_config.yaml` | Federated with IID partitioning |
+| `federated/fedavg_dp_config.yaml` | Federated with Differential Privacy |
+| `federated/fedavg_category_config.yaml` | Federated with category-based partitioning |
+
+### DP Configuration Example
+
+```yaml
+differential_privacy:
+  enabled: true
+  epsilon: 5.0        # Privacy parameter (1.0-10.0)
+  delta: 1e-5         # Failure probability
+  clipping_norm: 1.0  # L2 norm clipping
+```
+
+## Project Structure
+
+```
+src/
+├── data/                 # Dataset loading and preprocessing
+├── models/               # PatchCore model and memory bank
+├── training/             # Training configuration and setup
+├── evaluation/           # Metrics, visualization, anomaly scoring
+├── federated/            # Federated learning client/server
+├── privacy/              # Differential privacy mechanisms
+├── robustness/           # Byzantine-robust aggregation
+└── fairness/             # Fairness metrics and evaluation
+
+experiments/
+├── configs/              # YAML configuration files
+└── scripts/              # Evaluation and analysis scripts
+
+results/                  # Generated outputs and reports
+```
+
+---
+
 # License
 The license agreement for our evaluation code is found in the accompanying
 `LICENSE.txt` file.
