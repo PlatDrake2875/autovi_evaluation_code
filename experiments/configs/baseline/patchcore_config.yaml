@@ -1,0 +1,30 @@
+# PatchCore Baseline Configuration
+# Centralized training configuration for AutoVI dataset
+
+model:
+  backbone: "wide_resnet50_2"
+  layers: ["layer2", "layer3"]
+  coreset_percentage: 0.1
+  neighborhood_size: 3
+  use_faiss: true
+  max_memory_samples: null  # Set to limit memory bank size
+  coreset_method: "greedy"  # "greedy" for small images (400x400), "kmeans" for large images (1000x750)
+
+preprocessing:
+  # Small objects: engine_wiring, pipe_clip, pipe_staple
+  resize_small: [400, 400]
+  # Large objects: tank_screw, underbody_pipes, underbody_screw
+  resize_large: [1000, 750]
+  # ImageNet normalization
+  normalize_mean: [0.485, 0.456, 0.406]
+  normalize_std: [0.229, 0.224, 0.225]
+
+training:
+  batch_size: 32
+  num_workers: 4
+
+inference:
+  anomaly_threshold: null  # Computed from validation
+  num_neighbors: 1  # k for k-NN scoring
+
+seed: 42

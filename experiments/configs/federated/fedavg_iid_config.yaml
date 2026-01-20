@@ -1,0 +1,43 @@
+# Federated PatchCore Configuration - IID Partitioning
+# Uniformly distributes data across all clients
+
+federated:
+  num_clients: 5
+  partitioning: "iid"
+  num_rounds: 1  # Number of federated training rounds
+
+model:
+  backbone: "wide_resnet50_2"
+  layers: ["layer2", "layer3"]
+  coreset_ratio: 0.1  # Local coreset ratio per client
+  neighborhood_size: 3
+  use_faiss: true
+
+aggregation:
+  strategy: "federated_coreset"
+  global_bank_size: 10000
+  weighted_by_samples: true
+  oversample_factor: 2.0
+
+preprocessing:
+  # Small objects: engine_wiring, pipe_clip, pipe_staple
+  resize_small: [400, 400]
+  # Large objects: tank_screw, underbody_pipes, underbody_screw
+  resize_large: [1000, 750]
+  # ImageNet normalization
+  normalize_mean: [0.485, 0.456, 0.406]
+  normalize_std: [0.229, 0.224, 0.225]
+
+training:
+  batch_size: 32
+  num_workers: 4
+
+inference:
+  num_neighbors: 1
+
+output:
+  dir: "outputs/federated/iid"
+  save_memory_bank: true
+  save_client_stats: true
+
+seed: 42

@@ -1,0 +1,32 @@
+# PatchCore Baseline Configuration (Low Memory)
+# Centralized training configuration for AutoVI dataset
+# Modified for limited GPU memory (batch_size reduced)
+
+model:
+  backbone: "wide_resnet50_2"
+  layers: ["layer2", "layer3"]
+  coreset_percentage: 0.01  # 1% coreset (paper shows this works nearly as well as 100%)
+  neighborhood_size: 3
+  use_faiss: true
+  max_memory_samples: null  # Let coreset_percentage determine size
+  coreset_method: "kmeans"  # KMeans with 1% is fast (~9k clusters) and memory-efficient
+  use_projection: false  # Not needed for kmeans (processes in batches)
+
+preprocessing:
+  # Small objects: engine_wiring, pipe_clip, pipe_staple
+  resize_small: [400, 400]
+  # Large objects: tank_screw, underbody_pipes, underbody_screw
+  resize_large: [1000, 750]
+  # ImageNet normalization
+  normalize_mean: [0.485, 0.456, 0.406]
+  normalize_std: [0.229, 0.224, 0.225]
+
+training:
+  batch_size: 4  # Reduced from 32 for limited GPU memory
+  num_workers: 4
+
+inference:
+  anomaly_threshold: null  # Computed from validation
+  num_neighbors: 1  # k for k-NN scoring
+
+seed: 42
